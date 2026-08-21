@@ -8,4 +8,5 @@
 # Backend Build & Upload Artifacts
 /backend/target/
 /backend/uploads/
+.mvn/
 *.class
