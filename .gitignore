@@ -1,2 +1,11 @@
-#Resources
+# Resources
 /resources/
+
+# IDE
+.vscode/
+.idea/
+
+# Backend Build & Upload Artifacts
+/backend/target/
+/backend/uploads/
+*.class
