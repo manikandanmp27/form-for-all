@@ -97,10 +97,11 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- Dotenv for reading .env file -->
         <dependency>
-            <groupId>org.springframework.security</groupId>
-            <artifactId>spring-security-test</artifactId>
-            <scope>test</scope>
+            <groupId>io.github.cdimascio</groupId>
+            <artifactId>dotenv-java</artifactId>
+            <version>3.1.0</version>
         </dependency>
     </dependencies>
 
