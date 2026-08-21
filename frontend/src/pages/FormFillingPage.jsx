@@ -15,7 +15,7 @@ export const FormFillingPage = () => {
   const { sessionId } = useParams();
   const navigate = useNavigate();
 
-  const { isCognitiveMode, profile } = useProfile();
+  const { isCognitiveMode, profile, t, tField } = useProfile();
   const { speak, isSpeaking, stopSpeaking, startListening, isListening } = useVoice();
 
   const [stepData, setStepData] = useState(null);
@@ -27,52 +27,54 @@ export const FormFillingPage = () => {
   const [pendingRisk, setPendingRisk] = useState(null);
 
   // Demo fallback steps if backend server is not reachable
-  const demoFields = [
-    {
-      id: 'field-1',
-      fieldName: 'applicantFullName',
-      label: 'Full Legal Name',
-      description: 'Enter your full legal name exactly as printed on your government photo ID.',
-      whyAsked: 'Required to verify your legal identity for account ownership.',
-      fieldType: 'TEXT',
-      isRequired: true,
-      defaultValue: '',
-    },
-    {
-      id: 'field-2',
-      fieldName: 'dateOfBirth',
-      label: 'Date of Birth',
-      description: 'Select your official birth date.',
-      whyAsked: 'Used to verify legal age eligibility.',
-      fieldType: 'DATE',
-      isRequired: true,
-      defaultValue: '',
-    },
-    {
-      id: 'field-3',
-      fieldName: 'nomineeName',
-      label: 'Primary Nominee Name',
-      description: 'Enter the full name of your designated primary beneficiary.',
-      whyAsked: 'Assigns legal transfer rights in case of account settlement.',
-      fieldType: 'TEXT',
-      isRequired: true,
-      isHighRisk: true,
-      riskWarning: 'Changing your primary nominee will replace any existing legal beneficiary assigned to this account.',
-      defaultValue: '',
-    },
-    {
-      id: 'field-4',
-      fieldName: 'permanentAddress',
-      label: 'Permanent Residential Address',
-      description: 'Provide the address where you currently live permanently.',
-      whyAsked: 'Required for official postal communications and residency verification.',
-      fieldType: 'TEXTAREA',
-      isRequired: true,
-      defaultValue: '',
-    },
-  ];
+  const getDemoFieldsForForm = () => {
+    return [
+      {
+        id: 'field-1',
+        fieldName: 'applicantFullName',
+        label: 'Full Legal Name',
+        description: 'Enter your full legal name exactly as printed on your government photo ID.',
+        whyAsked: 'Required to verify your legal identity for form submission.',
+        fieldType: 'TEXT',
+        isRequired: true,
+        defaultValue: '',
+      },
+      {
+        id: 'field-2',
+        fieldName: 'aadhaarNumber',
+        label: 'Aadhaar / Enrollment Number',
+        description: 'Enter your 12-digit Aadhaar number or 28-digit Enrollment ID.',
+        whyAsked: 'Used by identity authority to fetch official verification details.',
+        fieldType: 'TEXT',
+        isRequired: true,
+        defaultValue: '',
+      },
+      {
+        id: 'field-3',
+        fieldName: 'dateOfBirth',
+        label: 'Date of Birth',
+        description: 'Select your official birth date.',
+        whyAsked: 'Used to verify legal age eligibility.',
+        fieldType: 'DATE',
+        isRequired: true,
+        defaultValue: '',
+      },
+      {
+        id: 'field-4',
+        fieldName: 'permanentAddress',
+        label: 'Permanent Residential Address',
+        description: 'Provide the address where you currently live permanently.',
+        whyAsked: 'Required for official postal communications and residency verification.',
+        fieldType: 'TEXTAREA',
+        isRequired: true,
+        defaultValue: '',
+      },
+    ];
+  };
 
+  const demoFields = getDemoFieldsForForm();
   const [demoStepIndex, setDemoStepIndex] = useState(0);
+
 
   const fetchState = async () => {
     setIsLoading(true);
@@ -111,20 +113,21 @@ export const FormFillingPage = () => {
     fetchState();
   }, [sessionId, demoStepIndex]);
 
+  const rawField = stepData?.currentField || {};
+  const currentField = tField(rawField);
+
   // Auto read-aloud when voice preference is enabled
   useEffect(() => {
-    if (profile.voicePreference && stepData?.currentField) {
-      const current = stepData.currentField;
-      const textToRead = `${current.label}. ${current.description || ''}`;
-      speak(textToRead);
+    if (profile.voicePreference && currentField?.label) {
+      const textToRead = `${currentField.label}. ${currentField.description || ''}`;
+      speak(textToRead, profile.preferredLanguage);
     }
-  }, [stepData, profile.voicePreference]);
+  }, [stepData, profile.voicePreference, profile.preferredLanguage]);
 
   const handleNext = async (e) => {
     e?.preventDefault();
     setError('');
 
-    const currentField = stepData?.currentField;
     if (currentField?.isRequired && !answerValue.trim()) {
       setError(`Please provide an answer for "${currentField.label}".`);
       return;
@@ -135,7 +138,7 @@ export const FormFillingPage = () => {
       setPendingRisk({
         id: 'risk-demo-1',
         fieldLabel: currentField.label,
-        warningTitle: 'Before you submit this answer',
+        warningTitle: t('beforeContinue'),
         warningReason: currentField.riskWarning || 'This field impacts account nominee legal ownership.',
         consequenceExplanation: 'Submitting this change will overwrite legal nominee records on file.',
       });
@@ -169,7 +172,7 @@ export const FormFillingPage = () => {
       setDemoStepIndex((prev) => prev - 1);
     } else if (stepData?.currentStep > 1) {
       try {
-        const res = await conversationApi.submitAnswer(sessionId, stepData.currentField.id, answerValue, 'PREVIOUS');
+        const res = await conversationApi.submitAnswer(sessionId, currentField.id, answerValue, 'PREVIOUS');
         setStepData(res);
       } catch (err) {
         console.warn('Previous step error:', err);
@@ -184,7 +187,6 @@ export const FormFillingPage = () => {
         await riskApi.confirmRiskAlert(sessionId, pendingRisk.id, true);
       }
       setPendingRisk(null);
-      // Proceed to next field after confirmation
       if (demoStepIndex < demoFields.length - 1) {
         setDemoStepIndex((prev) => prev + 1);
         setAnswerValue('');
@@ -213,7 +215,6 @@ export const FormFillingPage = () => {
     );
   }
 
-  const currentField = stepData?.currentField || {};
   const currentStep = stepData?.currentStep || 1;
   const totalSteps = stepData?.totalSteps || 4;
 
@@ -244,14 +245,14 @@ export const FormFillingPage = () => {
               onClick={() => {
                 const text = `${currentField.label}. ${currentField.description || ''}`;
                 if (isSpeaking) stopSpeaking();
-                else speak(text);
+                else speak(text, profile.preferredLanguage);
               }}
               className={`p-2.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 ${
                 isSpeaking ? 'bg-amber-100 text-amber-900 border-amber-300' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
               title="Read Question Out Loud"
             >
-              <Volume2 className="w-4 h-4" /> {isSpeaking ? 'Stop Voice' : 'Read Question'}
+              <Volume2 className="w-4 h-4" /> {isSpeaking ? t('stopVoice') : t('readQuestion')}
             </button>
           </div>
         </div>
@@ -287,10 +288,10 @@ export const FormFillingPage = () => {
                   className="text-teal-800 hover:text-teal-950 text-sm font-bold flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-teal-600 rounded px-1"
                 >
                   <HelpCircle className="w-4 h-4" />
-                  <span>Why is this asked?</span>
+                  <span>{t('whyIsThisAsked')}</span>
                 </button>
                 {showWhyAsked && (
-                  <p className="mt-2 text-xs text-slate-700 bg-teal-50 border border-teal-200 p-3 rounded-xl">
+                  <p className="mt-2 text-xs text-slate-700 bg-teal-50 border border-teal-200 p-3 rounded-xl font-medium">
                     {currentField.whyAsked}
                   </p>
                 )}
@@ -306,7 +307,7 @@ export const FormFillingPage = () => {
                       rows={4}
                       value={answerValue}
                       onChange={(e) => setAnswerValue(e.target.value)}
-                      placeholder="Type your answer here..."
+                      placeholder={t('typeAnswer')}
                       className="w-full text-lg p-4 rounded-2xl border-2 border-slate-900 focus:ring-4 focus:ring-teal-400 text-slate-950 bg-white font-medium shadow-inner"
                     />
                   ) : (
@@ -314,7 +315,7 @@ export const FormFillingPage = () => {
                       type={currentField.fieldType === 'DATE' ? 'date' : 'text'}
                       value={answerValue}
                       onChange={(e) => setAnswerValue(e.target.value)}
-                      placeholder="Type your answer here..."
+                      placeholder={t('typeAnswer')}
                       className="w-full text-xl p-4 rounded-2xl border-2 border-slate-900 focus:ring-4 focus:ring-teal-400 text-slate-950 bg-white font-medium shadow-inner"
                     />
                   )}
@@ -328,7 +329,7 @@ export const FormFillingPage = () => {
                     }`}
                     title="Speak Answer"
                   >
-                    <Mic className="w-4 h-4" /> {isListening ? 'Listening...' : 'Voice Input'}
+                    <Mic className="w-4 h-4" /> {isListening ? t('listening') : t('dictate')}
                   </button>
                 </div>
               </div>
@@ -341,7 +342,7 @@ export const FormFillingPage = () => {
                   disabled={currentStep === 1}
                   className="px-6 py-3.5 rounded-2xl border-2 border-slate-300 hover:bg-slate-100 text-slate-900 font-bold text-base flex items-center gap-2 disabled:opacity-30 cursor-pointer"
                 >
-                  <ArrowLeft className="w-5 h-5" /> Previous Question
+                  <ArrowLeft className="w-5 h-5" /> {t('previousQuestion')}
                 </button>
 
                 <button
@@ -349,7 +350,7 @@ export const FormFillingPage = () => {
                   disabled={isSubmitting}
                   className="px-8 py-3.5 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white font-extrabold text-lg flex items-center gap-2 shadow-lg focus:ring-4 focus:ring-teal-300 disabled:opacity-50 cursor-pointer"
                 >
-                  <span>{currentStep === totalSteps ? 'Review Answers' : 'Next Question'}</span>
+                  <span>{currentStep === totalSteps ? t('reviewAnswers') : t('nextQuestion')}</span>
                   <ArrowRight className="w-5 h-5" />
                 </button>
               </div>
@@ -363,7 +364,7 @@ export const FormFillingPage = () => {
                 <span className="text-xs font-bold text-slate-500">Question {currentStep} of {totalSteps}</span>
                 {currentField.isRequired && (
                   <span className="text-xs font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
-                    Required Field
+                    {t('requiredField')}
                   </span>
                 )}
               </div>
@@ -379,9 +380,9 @@ export const FormFillingPage = () => {
             {currentField.whyAsked && (
               <div className="bg-teal-50/70 border border-teal-200 p-4 rounded-xl text-xs space-y-1">
                 <p className="font-bold text-teal-900 flex items-center gap-1">
-                  <HelpCircle className="w-4 h-4 text-teal-700" /> Why is this asked?
+                  <HelpCircle className="w-4 h-4 text-teal-700" /> {t('whyIsThisAsked')}
                 </p>
-                <p className="text-slate-700">{currentField.whyAsked}</p>
+                <p className="text-slate-700 font-medium">{currentField.whyAsked}</p>
               </div>
             )}
 
@@ -389,7 +390,7 @@ export const FormFillingPage = () => {
             <form onSubmit={handleNext} className="space-y-6">
               <div className="space-y-2">
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  Your Response:
+                  {t('yourResponse')}
                 </label>
                 <div className="relative">
                   {currentField.fieldType === 'TEXTAREA' ? (
@@ -397,7 +398,7 @@ export const FormFillingPage = () => {
                       rows={3}
                       value={answerValue}
                       onChange={(e) => setAnswerValue(e.target.value)}
-                      placeholder="Type your response..."
+                      placeholder={t('typeAnswer')}
                       className="w-full text-base p-3.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-teal-600 text-slate-900"
                     />
                   ) : (
@@ -405,7 +406,7 @@ export const FormFillingPage = () => {
                       type={currentField.fieldType === 'DATE' ? 'date' : 'text'}
                       value={answerValue}
                       onChange={(e) => setAnswerValue(e.target.value)}
-                      placeholder="Type your response..."
+                      placeholder={t('typeAnswer')}
                       className="w-full text-base p-3.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-teal-600 text-slate-900"
                     />
                   )}
@@ -417,7 +418,7 @@ export const FormFillingPage = () => {
                       isListening ? 'bg-rose-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                     }`}
                   >
-                    <Mic className="w-3.5 h-3.5" /> Dictate
+                    <Mic className="w-3.5 h-3.5" /> {isListening ? t('listening') : t('dictate')}
                   </button>
                 </div>
               </div>
@@ -430,7 +431,7 @@ export const FormFillingPage = () => {
                   disabled={currentStep === 1}
                   className="px-5 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-800 font-semibold text-sm flex items-center gap-2 disabled:opacity-40 cursor-pointer"
                 >
-                  <ArrowLeft className="w-4 h-4" /> Previous
+                  <ArrowLeft className="w-4 h-4" /> {t('previous')}
                 </button>
 
                 <button
@@ -438,7 +439,7 @@ export const FormFillingPage = () => {
                   disabled={isSubmitting}
                   className="px-6 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm flex items-center gap-2 shadow-xs focus:ring-4 focus:ring-teal-300 disabled:opacity-50 cursor-pointer"
                 >
-                  <span>{currentStep === totalSteps ? 'Go to Review' : 'Next Step'}</span>
+                  <span>{currentStep === totalSteps ? t('goToReview') : t('nextStep')}</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>

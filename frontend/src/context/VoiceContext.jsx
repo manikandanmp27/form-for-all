@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { LANGUAGE_CODES } from '../utils/i18n';
 
 const VoiceContext = createContext(null);
 
@@ -22,13 +23,15 @@ export const VoiceProvider = ({ children }) => {
     }
   }, []);
 
-  const speak = (text) => {
+  const speak = (text, languageName = 'English') => {
     if (!('speechSynthesis' in window) || !text) return;
 
     window.speechSynthesis.cancel(); // Stop any active speech
 
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.95; // Slightly calmer pace
+    const langCode = LANGUAGE_CODES[languageName] || 'en-US';
+    utterance.lang = langCode;
+    utterance.rate = 0.95; // Calm pace
     utterance.pitch = 1.0;
 
     utterance.onstart = () => setIsSpeaking(true);
@@ -37,6 +40,7 @@ export const VoiceProvider = ({ children }) => {
 
     window.speechSynthesis.speak(utterance);
   };
+
 
   const stopSpeaking = () => {
     if ('speechSynthesis' in window) {

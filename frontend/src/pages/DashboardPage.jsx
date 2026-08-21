@@ -11,7 +11,7 @@ export const DashboardPage = () => {
   const [sessions, setSessions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  const { profile, isCognitiveMode } = useProfile();
+  const { profile, isCognitiveMode, t } = useProfile();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -75,10 +75,10 @@ export const DashboardPage = () => {
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="space-y-1">
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Form Accessibility Dashboard
+              {t('dashboardTitle')}
             </h1>
             <p className="text-slate-600 text-sm">
-              Your active forms and accessibility settings.
+              {t('dashboardSubtitle')}
             </p>
           </div>
 
@@ -87,7 +87,7 @@ export const DashboardPage = () => {
               to="/forms/new"
               className="bg-teal-600 hover:bg-teal-700 text-white font-bold px-5 py-2.5 rounded-xl shadow-xs transition-colors flex items-center gap-2 text-sm focus:ring-4 focus:ring-teal-300"
             >
-              <PlusCircle className="w-4 h-4" /> Start New Form
+              <PlusCircle className="w-4 h-4" /> {t('uploadForm')}
             </Link>
           </div>
         </div>
@@ -103,9 +103,9 @@ export const DashboardPage = () => {
                 <FileText className="w-6 h-6" />
               </div>
               <div className="space-y-1">
-                <h2 className="text-lg font-bold text-slate-900">Upload PDF or Document Image</h2>
+                <h2 className="text-lg font-bold text-slate-900">{t('uploadDocument')}</h2>
                 <p className="text-slate-600 text-xs leading-relaxed">
-                  Upload any scanned PDF or photo of a physical document. We will extract all fields and explain them simply.
+                  {t('uploadDocDesc')}
                 </p>
               </div>
             </div>
@@ -113,7 +113,7 @@ export const DashboardPage = () => {
               to="/forms/new"
               className="bg-teal-50 hover:bg-teal-100 text-teal-800 font-bold px-4 py-2.5 rounded-xl text-xs text-center border border-teal-200 transition-colors flex items-center justify-center gap-1.5"
             >
-              <span>Upload Document</span>
+              <span>{t('uploadForm')}</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
@@ -125,9 +125,9 @@ export const DashboardPage = () => {
                 <Link2 className="w-6 h-6" />
               </div>
               <div className="space-y-1">
-                <h2 className="text-lg font-bold text-slate-900">Paste Form URL</h2>
+                <h2 className="text-lg font-bold text-slate-900">{t('pasteUrl')}</h2>
                 <p className="text-slate-600 text-xs leading-relaxed">
-                  Have a link to an online application form? Provide the web link to convert it into a calm guided session.
+                  {t('pasteUrlDesc')}
                 </p>
               </div>
             </div>
@@ -135,7 +135,7 @@ export const DashboardPage = () => {
               to="/forms/new"
               className="bg-indigo-50 hover:bg-indigo-100 text-indigo-800 font-bold px-4 py-2.5 rounded-xl text-xs text-center border border-indigo-200 transition-colors flex items-center justify-center gap-1.5"
             >
-              <span>Paste Web Form Link</span>
+              <span>{t('pasteUrl')}</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
@@ -145,7 +145,7 @@ export const DashboardPage = () => {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-6">
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">
             <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
-              <Clock className="w-5 h-5 text-teal-600" /> Active & Recent Forms
+              <Clock className="w-5 h-5 text-teal-600" /> {t('activeForms')}
             </h2>
             <span className="text-xs text-slate-500 font-medium">
               {sessions.length} {sessions.length === 1 ? 'form' : 'forms'} total
@@ -159,7 +159,7 @@ export const DashboardPage = () => {
               <div className="w-12 h-12 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto">
                 <FileText className="w-6 h-6" />
               </div>
-              <h3 className="text-slate-800 font-bold text-base">No Forms Started Yet</h3>
+              <h3 className="text-slate-800 font-bold text-base">{t('noFormsYet')}</h3>
               <p className="text-slate-500 text-xs max-w-sm mx-auto">
                 Upload a document or paste a web form link above to begin your first guided form session.
               </p>
@@ -167,7 +167,7 @@ export const DashboardPage = () => {
                 to="/forms/new"
                 className="inline-flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs px-4 py-2 rounded-lg transition-colors mt-2"
               >
-                <PlusCircle className="w-4 h-4" /> Start Form Now
+                <PlusCircle className="w-4 h-4" /> {t('uploadForm')}
               </Link>
             </div>
           ) : (
@@ -215,14 +215,14 @@ export const DashboardPage = () => {
                           to={`/forms/${sess.id}/review`}
                           className="w-full sm:w-auto bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-4 py-2 rounded-lg text-xs transition-colors text-center"
                         >
-                          View Answers
+                          {t('viewAnswers')}
                         </Link>
                       ) : (
                         <Link
                           to={`/forms/${sess.id}`}
                           className="w-full sm:w-auto bg-teal-600 hover:bg-teal-700 text-white font-bold px-4 py-2 rounded-lg text-xs transition-colors text-center flex items-center justify-center gap-1.5 shadow-2xs"
                         >
-                          <Play className="w-3.5 h-3.5 fill-current" /> Continue Form
+                          <Play className="w-3.5 h-3.5 fill-current" /> {t('continueForm')}
                         </Link>
                       )}
                     </div>

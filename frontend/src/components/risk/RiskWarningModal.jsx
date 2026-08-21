@@ -5,14 +5,14 @@ import { useProfile } from '../../context/ProfileContext';
 
 export const RiskWarningModal = ({ riskFlag, onConfirm, onGoBack, isSubmitting }) => {
   const { speak } = useVoice();
-  const { profile } = useProfile();
+  const { profile, t } = useProfile();
 
   useEffect(() => {
     if (profile.voicePreference && riskFlag) {
-      const textToRead = `Warning. ${riskFlag.warningTitle || 'Before you continue'}. ${riskFlag.consequenceExplanation || riskFlag.warningReason || ''}`;
-      speak(textToRead);
+      const textToRead = `Warning. ${riskFlag.warningTitle || t('beforeContinue')}. ${riskFlag.consequenceExplanation || riskFlag.warningReason || ''}`;
+      speak(textToRead, profile.preferredLanguage);
     }
-  }, [riskFlag, profile.voicePreference]);
+  }, [riskFlag, profile.voicePreference, profile.preferredLanguage]);
 
   if (!riskFlag) return null;
 
@@ -31,10 +31,10 @@ export const RiskWarningModal = ({ riskFlag, onConfirm, onGoBack, isSubmitting }
           </div>
           <div>
             <span className="text-xs font-extrabold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full">
-              Important Notice Required
+              {t('importantNotice')}
             </span>
             <h2 id="risk-warning-title" className="text-xl font-extrabold text-slate-900 mt-1">
-              {riskFlag.warningTitle || 'Before You Continue'}
+              {riskFlag.warningTitle || t('beforeContinue')}
             </h2>
           </div>
         </div>
@@ -55,7 +55,7 @@ export const RiskWarningModal = ({ riskFlag, onConfirm, onGoBack, isSubmitting }
           {riskFlag.consequenceExplanation && (
             <div className="p-4 bg-white rounded-xl border border-amber-200 shadow-2xs space-y-1">
               <p className="font-bold text-rose-700 flex items-center gap-1.5 text-xs uppercase tracking-wide">
-                <AlertTriangle className="w-4 h-4" /> Potential Impact
+                <AlertTriangle className="w-4 h-4" /> {t('potentialImpact')}
               </p>
               <p className="text-slate-900 font-medium text-sm">
                 {riskFlag.consequenceExplanation}
@@ -72,7 +72,7 @@ export const RiskWarningModal = ({ riskFlag, onConfirm, onGoBack, isSubmitting }
             disabled={isSubmitting}
             className="w-full sm:w-auto px-5 py-3 rounded-xl border-2 border-slate-300 hover:bg-slate-100 text-slate-800 font-bold text-sm flex items-center justify-center gap-2 focus:ring-4 focus:ring-slate-300 cursor-pointer"
           >
-            <ArrowLeft className="w-4 h-4" /> Go Back and Change Answer
+            <ArrowLeft className="w-4 h-4" /> {t('goBackChange')}
           </button>
 
           <button
@@ -81,7 +81,7 @@ export const RiskWarningModal = ({ riskFlag, onConfirm, onGoBack, isSubmitting }
             disabled={isSubmitting}
             className="w-full sm:w-auto px-6 py-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-md focus:ring-4 focus:ring-amber-300 cursor-pointer"
           >
-            <CheckCircle2 className="w-4 h-4" /> {isSubmitting ? 'Confirming...' : 'I Understand, Continue'}
+            <CheckCircle2 className="w-4 h-4" /> {isSubmitting ? 'Confirming...' : t('understandContinue')}
           </button>
         </div>
       </div>

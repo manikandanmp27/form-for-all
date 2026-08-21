@@ -1,10 +1,12 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useProfile } from '../../context/ProfileContext';
 import { FileText, User, LogOut, PlusCircle, LayoutDashboard, Sparkles } from 'lucide-react';
 
 export const Navbar = () => {
   const { user, isAuthenticated, logout } = useAuth();
+  const { t } = useProfile();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -37,14 +39,14 @@ export const Navbar = () => {
                 to="/dashboard"
                 className="text-slate-600 hover:text-teal-700 font-medium text-sm flex items-center gap-1.5 focus:ring-2 focus:ring-teal-500 rounded px-2 py-1"
               >
-                <LayoutDashboard className="w-4 h-4 text-teal-600" /> Dashboard
+                <LayoutDashboard className="w-4 h-4 text-teal-600" /> {t('dashboard')}
               </Link>
 
               <Link
                 to="/forms/new"
                 className="bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold px-3.5 py-1.5 rounded-lg shadow-xs transition-colors flex items-center gap-1.5 focus:ring-2 focus:ring-teal-700 focus:outline-none"
               >
-                <PlusCircle className="w-4 h-4" /> Upload Form
+                <PlusCircle className="w-4 h-4" /> {t('uploadForm')}
               </Link>
 
               <div className="h-5 w-px bg-slate-200 hidden sm:block" />
@@ -56,8 +58,8 @@ export const Navbar = () => {
                 <button
                   onClick={handleLogout}
                   className="text-slate-500 hover:text-rose-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors focus:ring-2 focus:ring-rose-500"
-                  title="Log out"
-                  aria-label="Log out"
+                  title={t('logout')}
+                  aria-label={t('logout')}
                 >
                   <LogOut className="w-4 h-4" />
                 </button>
@@ -75,13 +77,13 @@ export const Navbar = () => {
                 to="/login"
                 className="text-teal-700 hover:text-teal-800 font-semibold text-sm focus:ring-2 focus:ring-teal-500 rounded px-3 py-1.5 border border-teal-200 hover:bg-teal-50"
               >
-                Log In
+                {t('login')}
               </Link>
               <Link
                 to="/register"
                 className="bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold px-4 py-1.5 rounded-lg shadow-xs transition-colors focus:ring-2 focus:ring-teal-700"
               >
-                Get Started
+                {t('getStarted')}
               </Link>
             </>
           )}

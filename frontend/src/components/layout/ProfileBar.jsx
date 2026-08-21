@@ -18,7 +18,7 @@ const LANGUAGES = [
 ];
 
 export const ProfileBar = () => {
-  const { profile, toggleCognitiveMode, toggleVoicePreference, setLanguage, isCognitiveMode } = useProfile();
+  const { profile, toggleCognitiveMode, toggleVoicePreference, setLanguage, isCognitiveMode, t } = useProfile();
   const { isSpeaking, stopSpeaking } = useVoice();
 
   return (
@@ -29,13 +29,13 @@ export const ProfileBar = () => {
       {/* Left: Language Selection */}
       <div className="flex items-center gap-2">
         <label htmlFor="language-select" className="font-medium text-slate-300 text-xs uppercase tracking-wider flex items-center gap-1">
-          <GlobeIcon className="w-3.5 h-3.5 text-teal-400" /> Language:
+          <GlobeIcon className="w-3.5 h-3.5 text-teal-400" /> {t('language')}:
         </label>
         <select
           id="language-select"
           value={profile.preferredLanguage || 'English'}
           onChange={(e) => setLanguage(e.target.value)}
-          className="bg-slate-800 text-white rounded border border-slate-700 px-2 py-1 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none cursor-pointer"
+          className="bg-slate-800 text-white rounded border border-slate-700 px-2 py-1 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none cursor-pointer font-bold"
         >
           {LANGUAGES.map((lang) => (
             <option key={lang} value={lang}>
@@ -59,7 +59,7 @@ export const ProfileBar = () => {
           title="Toggle Cognitive-Load Mode (Single field, calm layout)"
         >
           <Brain className="w-3.5 h-3.5" />
-          <span>Cognitive Mode: {isCognitiveMode ? 'ON (Calm)' : 'OFF'}</span>
+          <span>{t('cognitiveMode')}: {isCognitiveMode ? t('onCalm') : t('off')}</span>
         </button>
 
         {/* Voice Preference Toggle */}
@@ -77,7 +77,7 @@ export const ProfileBar = () => {
           title="Toggle Read-Aloud Voice Assistant"
         >
           {profile.voicePreference ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
-          <span>Voice: {profile.voicePreference ? 'ENABLED' : 'OFF'}</span>
+          <span>{t('voice')}: {profile.voicePreference ? t('enabled') : t('off')}</span>
         </button>
 
         {/* Accessibility Need Badge */}
@@ -94,7 +94,7 @@ export const ProfileBar = () => {
           to="/profile"
           className="text-slate-300 hover:text-teal-400 flex items-center gap-1 text-xs font-medium focus:ring-2 focus:ring-teal-500 rounded px-1.5 py-0.5"
         >
-          <Settings className="w-3.5 h-3.5" /> Profile Settings
+          <Settings className="w-3.5 h-3.5" /> {t('profileSettings')}
         </Link>
       </div>
     </div>

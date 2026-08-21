@@ -12,6 +12,7 @@ export const ReviewPage = () => {
   const navigate = useNavigate();
 
   const { speak, isSpeaking, stopSpeaking } = useVoice();
+  const { profile, t, tField } = useProfile();
 
   const [reviewData, setReviewData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -31,6 +32,7 @@ export const ReviewPage = () => {
     fields: [
       {
         id: 'field-1',
+        fieldName: 'applicantFullName',
         label: 'Full Legal Name',
         description: 'Legal name on government ID',
         value: 'Jane Mary Doe',
@@ -38,6 +40,7 @@ export const ReviewPage = () => {
       },
       {
         id: 'field-2',
+        fieldName: 'dateOfBirth',
         label: 'Date of Birth',
         description: 'Official birth date',
         value: '1992-05-14',
@@ -45,6 +48,7 @@ export const ReviewPage = () => {
       },
       {
         id: 'field-3',
+        fieldName: 'nomineeName',
         label: 'Primary Nominee Name',
         description: 'Designated legal beneficiary',
         value: 'Robert John Doe',
@@ -53,6 +57,7 @@ export const ReviewPage = () => {
       },
       {
         id: 'field-4',
+        fieldName: 'permanentAddress',
         label: 'Permanent Address',
         description: 'Current residential address',
         value: '124 Green Park Avenue, New York, NY 10001',
@@ -83,10 +88,13 @@ export const ReviewPage = () => {
       stopSpeaking();
       return;
     }
-    const fields = reviewData?.fields || [];
+    const fieldsList = reviewData?.fields || [];
     const textToRead = `Form Summary for ${reviewData?.formTitle || 'Form'}. ` +
-      fields.map((f) => `${f.label}: ${f.value || 'Not provided'}.`).join(' ');
-    speak(textToRead);
+      fieldsList.map((f) => {
+        const tf = tField(f);
+        return `${tf.label}: ${tf.value || 'Not provided'}.`;
+      }).join(' ');
+    speak(textToRead, profile.preferredLanguage);
   };
 
   const handleSubmit = async () => {
@@ -116,7 +124,6 @@ export const ReviewPage = () => {
       a.remove();
     } catch (err) {
       alert('Generating demo PDF export package...');
-      // Local fallback blob download
       const fakeContent = `Fill-For-Me Export\nForm: ${reviewData?.formTitle}\nStatus: Submitted\nCompleted At: ${new Date().toLocaleString()}`;
       const blob = new Blob([fakeContent], { type: 'text/plain' });
       const url = window.URL.createObjectURL(blob);
@@ -137,7 +144,8 @@ export const ReviewPage = () => {
     );
   }
 
-  const fields = reviewData?.fields || [];
+  const rawFields = reviewData?.fields || [];
+  const fields = rawFields.map((f) => tField(f));
 
   return (
     <div className="bg-slate-50 min-h-screen flex flex-col">
@@ -165,7 +173,7 @@ export const ReviewPage = () => {
                 isSpeaking ? 'bg-amber-100 text-amber-900 border-amber-300' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
-              <Volume2 className="w-4 h-4" /> {isSpeaking ? 'Stop Summary' : 'Read Summary Out Loud'}
+              <Volume2 className="w-4 h-4" /> {isSpeaking ? t('stopVoice') : t('readQuestion')}
             </button>
           </div>
         </div>
@@ -203,7 +211,7 @@ export const ReviewPage = () => {
                     to={`/forms/${sessionId}`}
                     className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 text-slate-700 font-semibold text-xs transition-colors"
                   >
-                    <Edit3 className="w-3.5 h-3.5" /> Edit Answer
+                    <Edit3 className="w-3.5 h-3.5" /> {t('editAnswer')}
                   </Link>
                 </div>
               </div>
@@ -226,7 +234,7 @@ export const ReviewPage = () => {
               disabled={isExporting}
               className="w-full sm:w-auto bg-slate-800 hover:bg-slate-700 text-white font-bold px-6 py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2 focus:ring-4 focus:ring-slate-400 cursor-pointer"
             >
-              <Download className="w-4 h-4" /> {isExporting ? 'Preparing PDF...' : 'Download Form PDF'}
+              <Download className="w-4 h-4" /> {isExporting ? 'Preparing PDF...' : t('downloadPdf')}
             </button>
 
             <button
@@ -234,7 +242,7 @@ export const ReviewPage = () => {
               disabled={isSubmitting}
               className="w-full sm:w-auto bg-teal-600 hover:bg-teal-700 text-white font-extrabold px-8 py-3 rounded-xl text-base shadow-md transition-colors flex items-center justify-center gap-2 focus:ring-4 focus:ring-teal-300 cursor-pointer"
             >
-              <Send className="w-4 h-4" /> {isSubmitting ? 'Submitting...' : 'Final Submit Form'}
+              <Send className="w-4 h-4" /> {isSubmitting ? 'Submitting...' : t('submitForm')}
             </button>
           </div>
         </div>

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { profileApi } from '../api/profileApi';
 import { useAuth } from './AuthContext';
+import { getTranslation, translateField } from '../utils/i18n';
 
 const ProfileContext = createContext(null);
 
@@ -72,6 +73,9 @@ export const ProfileProvider = ({ children }) => {
     updateProfile({ accessibilityNeed: need });
   };
 
+  const t = (key) => getTranslation(profile.preferredLanguage, key);
+  const tField = (field) => translateField(field, profile.preferredLanguage);
+
   return (
     <ProfileContext.Provider
       value={{
@@ -82,6 +86,8 @@ export const ProfileProvider = ({ children }) => {
         toggleVoicePreference,
         setLanguage,
         setAccessibilityNeed,
+        t,
+        tField,
         isCognitiveMode: profile.cognitiveLoadPreference === 'LOW',
       }}
     >
@@ -89,6 +95,7 @@ export const ProfileProvider = ({ children }) => {
     </ProfileContext.Provider>
   );
 };
+
 
 export const useProfile = () => {
   const context = useContext(ProfileContext);
