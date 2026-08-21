@@ -68,7 +68,7 @@ public class PdfDocumentProcessor implements DocumentProcessor {
 
         // Fallback default fields if document has minimal readable text
         if (fields.isEmpty()) {
-            fields.addAll(getDefaultFallbackFields());
+            fields.addAll(getDefaultFallbackFields(filename));
         }
 
         return fields;
@@ -107,14 +107,14 @@ public class PdfDocumentProcessor implements DocumentProcessor {
             String trimmed = line.trim();
             if (trimmed.length() < 3 || trimmed.length() > 80) continue;
 
-            if (trimmed.toLowerCase().contains("name") || trimmed.toLowerCase().contains("address") ||
-                trimmed.toLowerCase().contains("account") || trimmed.toLowerCase().contains("nominee") ||
-                trimmed.toLowerCase().contains("phone") || trimmed.toLowerCase().contains("email") ||
-                trimmed.toLowerCase().contains("date") || trimmed.toLowerCase().contains("declaration") ||
-                trimmed.toLowerCase().contains("ifsc") || trimmed.toLowerCase().contains("iban")) {
+            String lower = trimmed.toLowerCase();
+            if (lower.contains("name") || lower.contains("address") || lower.contains("aadhaar") ||
+                lower.contains("uid") || lower.contains("enrollment") || lower.contains("gender") ||
+                lower.contains("dob") || lower.contains("phone") || lower.contains("mobile") ||
+                lower.contains("email") || lower.contains("date") || lower.contains("declaration") ||
+                lower.contains("guardian") || lower.contains("father") || lower.contains("mother")) {
 
                 FieldType type = FieldType.TEXT;
-                String lower = trimmed.toLowerCase();
                 if (lower.contains("date") || lower.contains("dob")) type = FieldType.DATE;
                 else if (lower.contains("email")) type = FieldType.EMAIL;
                 else if (lower.contains("phone") || lower.contains("mobile")) type = FieldType.PHONE;
@@ -135,15 +135,31 @@ public class PdfDocumentProcessor implements DocumentProcessor {
         return fields;
     }
 
-    private List<ExtractedFieldData> getDefaultFallbackFields() {
+    private List<ExtractedFieldData> getDefaultFallbackFields(String filename) {
+        String lowerName = filename != null ? filename.toLowerCase() : "";
+
+        // If Aadhaar / Identity document
+        if (lowerName.contains("aadhaar") || lowerName.contains("aadhar") || lowerName.contains("uidai") ||
+            lowerName.contains("identity") || lowerName.contains("id") || lowerName.contains("voter") || lowerName.contains("passport")) {
+            return List.of(
+                    ExtractedFieldData.builder().fieldKey("applicantFullName").label("Full Legal Name").fieldType(FieldType.TEXT).required(true).orderIndex(1).defaultHelpText("Enter full name as on your ID document").build(),
+                    ExtractedFieldData.builder().fieldKey("aadhaarNumber").label("Aadhaar / ID Number").fieldType(FieldType.TEXT).required(true).orderIndex(2).defaultHelpText("12-digit Aadhaar / Enrollment Number").build(),
+                    ExtractedFieldData.builder().fieldKey("dateOfBirth").label("Date of Birth").fieldType(FieldType.DATE).required(true).orderIndex(3).defaultHelpText("Select your official birth date").build(),
+                    ExtractedFieldData.builder().fieldKey("gender").label("Gender").fieldType(FieldType.TEXT).required(true).orderIndex(4).defaultHelpText("Male / Female / Transgender").build(),
+                    ExtractedFieldData.builder().fieldKey("mobileNumber").label("Mobile Phone Number").fieldType(FieldType.PHONE).required(true).orderIndex(5).defaultHelpText("Registered mobile number").build(),
+                    ExtractedFieldData.builder().fieldKey("permanentAddress").label("Permanent Residential Address").fieldType(FieldType.TEXT).required(true).orderIndex(6).defaultHelpText("Full residential address with PIN code").build(),
+                    ExtractedFieldData.builder().fieldKey("declarationConsent").label("Declaration & Authorization Consent").fieldType(FieldType.DECLARATION).required(true).orderIndex(7).defaultHelpText("Confirm legal consent for identity verification").build()
+            );
+        }
+
+        // Default General Form
         return List.of(
-                ExtractedFieldData.builder().fieldKey("full_name").label("Full Name").fieldType(FieldType.TEXT).required(true).orderIndex(1).defaultHelpText("Enter your official full name").build(),
-                ExtractedFieldData.builder().fieldKey("email_address").label("Email Address").fieldType(FieldType.EMAIL).required(true).orderIndex(2).defaultHelpText("Enter your active email address").build(),
-                ExtractedFieldData.builder().fieldKey("phone_number").label("Phone Number").fieldType(FieldType.PHONE).required(true).orderIndex(3).defaultHelpText("Enter your phone number").build(),
-                ExtractedFieldData.builder().fieldKey("bank_account_number").label("Bank Account Number").fieldType(FieldType.TEXT).required(true).orderIndex(4).defaultHelpText("Enter your bank account number").build(),
-                ExtractedFieldData.builder().fieldKey("ifsc_code").label("IFSC Code").fieldType(FieldType.TEXT).required(true).orderIndex(5).defaultHelpText("Enter your bank IFSC code").build(),
-                ExtractedFieldData.builder().fieldKey("nominee_name").label("Nominee Name").fieldType(FieldType.TEXT).required(false).orderIndex(6).defaultHelpText("Enter nominee name if applicable").build(),
-                ExtractedFieldData.builder().fieldKey("declaration_consent").label("Legal Declaration & Consent").fieldType(FieldType.DECLARATION).required(true).orderIndex(7).defaultHelpText("Confirm your legal consent to submit this form").build()
+                ExtractedFieldData.builder().fieldKey("applicantFullName").label("Full Name").fieldType(FieldType.TEXT).required(true).orderIndex(1).defaultHelpText("Enter your official full name").build(),
+                ExtractedFieldData.builder().fieldKey("dateOfBirth").label("Date of Birth").fieldType(FieldType.DATE).required(true).orderIndex(2).defaultHelpText("Select your official birth date").build(),
+                ExtractedFieldData.builder().fieldKey("mobileNumber").label("Mobile Phone Number").fieldType(FieldType.PHONE).required(true).orderIndex(3).defaultHelpText("Enter your contact phone number").build(),
+                ExtractedFieldData.builder().fieldKey("permanentAddress").label("Permanent Residential Address").fieldType(FieldType.TEXT).required(true).orderIndex(4).defaultHelpText("Enter your primary address").build(),
+                ExtractedFieldData.builder().fieldKey("declarationConsent").label("Legal Declaration & Consent").fieldType(FieldType.DECLARATION).required(true).orderIndex(5).defaultHelpText("Confirm your legal consent").build()
         );
     }
 }
+
