@@ -1,8 +1,5 @@
 package com.fillforme.backend.common.exception;
 
-import lombok.Getter;
-
-@Getter
 public class RiskConfirmationRequiredException extends RuntimeException {
     private final String riskId;
     private final String warningReason;
@@ -11,5 +8,13 @@ public class RiskConfirmationRequiredException extends RuntimeException {
         super(message);
         this.riskId = riskId;
         this.warningReason = warningReason;
+    }
+
+    public String getRiskId() {
+        return riskId;
+    }
+
+    public String getWarningReason() {
+        return warningReason;
     }
 }

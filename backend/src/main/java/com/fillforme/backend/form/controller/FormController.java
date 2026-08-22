@@ -28,8 +28,11 @@ public class FormController {
     public ResponseEntity<FormSessionDto> createFormFromFile(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @RequestParam("file") MultipartFile file,
-            @RequestParam(value = "title", required = false) String title) {
-        FormSessionDto dto = formService.createSessionFromFile(userPrincipal.getId(), file, title);
+            @RequestParam(value = "title", required = false) String title,
+            @RequestParam(value = "formTitle", required = false) String formTitle) {
+        UUID userId = userPrincipal != null ? userPrincipal.getId() : null;
+        String effectiveTitle = title != null && !title.isBlank() ? title : formTitle;
+        FormSessionDto dto = formService.createSessionFromFile(userId, file, effectiveTitle);
         return new ResponseEntity<>(dto, HttpStatus.CREATED);
     }
 
@@ -37,7 +40,8 @@ public class FormController {
     public ResponseEntity<FormSessionDto> createFormFromUrl(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @RequestBody FormIngestionRequest request) {
-        FormSessionDto dto = formService.createSessionFromUrl(userPrincipal.getId(), request.getFormUrl(), request.getFormTitle());
+        UUID userId = userPrincipal != null ? userPrincipal.getId() : null;
+        FormSessionDto dto = formService.createSessionFromUrl(userId, request.getFormUrl(), request.getFormTitle());
         return new ResponseEntity<>(dto, HttpStatus.CREATED);
     }
 
