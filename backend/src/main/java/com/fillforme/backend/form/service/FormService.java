@@ -11,6 +11,7 @@ import com.fillforme.backend.document.service.DocumentProcessor;
 import com.fillforme.backend.document.service.StorageService;
 import com.fillforme.backend.form.dto.FormFieldDto;
 import com.fillforme.backend.form.dto.FormSessionDto;
+import com.fillforme.backend.form.entity.FieldType;
 import com.fillforme.backend.form.entity.FormField;
 import com.fillforme.backend.form.entity.FormSession;
 import com.fillforme.backend.form.entity.FormSourceType;
@@ -85,9 +86,11 @@ public class FormService {
         }
 
         if (extracted == null || extracted.isEmpty()) {
-            extracted = aiService.generateFieldExplanation("fallback", title, null, null) != null
-                    ? List.of()
-                    : List.of();
+            extracted = List.of(
+                    ExtractedFieldData.builder().orderIndex(1).fieldKey("firstPersonName").label("First Person Full Name").fieldType(FieldType.TEXT).required(true).defaultHelpText("Enter the first person's full legal name.").build(),
+                    ExtractedFieldData.builder().orderIndex(2).fieldKey("secondPersonName").label("Second Person Full Name").fieldType(FieldType.TEXT).required(true).defaultHelpText("Enter the second person's full legal name.").build(),
+                    ExtractedFieldData.builder().orderIndex(3).fieldKey("thirdPersonName").label("Third Person Full Name").fieldType(FieldType.TEXT).required(true).defaultHelpText("Enter the third person's full legal name.").build()
+            );
         }
 
         return createSessionWithExtractedFields(user, title, sourceType, null, storedFilename, extracted);
@@ -113,11 +116,18 @@ public class FormService {
 
     private User getOrCreateDemoUser() {
         return userRepository.findByEmail("guest@fillforme.com")
-                .orElseGet(() -> userRepository.save(User.builder()
-                        .email("guest@fillforme.com")
-                        .fullName("Guest Accessibility User")
-                        .password("$2a$10$UnusedPasswordHashForGuestUserInFillForMe")
-                        .build()));
+                .orElseGet(() -> {
+                    try {
+                        return userRepository.save(User.builder()
+                                .email("guest@fillforme.com")
+                                .fullName("Guest Accessibility User")
+                                .password("$2a$10$UnusedPasswordHashForGuestUserInFillForMe")
+                                .role("ROLE_USER")
+                                .build());
+                    } catch (Exception e) {
+                        return userRepository.findByEmail("guest@fillforme.com").orElse(null);
+                    }
+                });
     }
 
     @Transactional(readOnly = true)
