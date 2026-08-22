@@ -5,6 +5,7 @@ export const formsApi = {
     const formData = new FormData();
     formData.append('file', file);
     if (formTitle) {
+      formData.append('title', formTitle);
       formData.append('formTitle', formTitle);
     }
     const response = await apiClient.post('/forms', formData, {
