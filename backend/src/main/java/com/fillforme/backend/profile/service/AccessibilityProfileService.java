@@ -2,7 +2,6 @@ package com.fillforme.backend.profile.service;
 
 import com.fillforme.backend.auth.entity.User;
 import com.fillforme.backend.auth.repository.UserRepository;
-import com.fillforme.backend.common.exception.ResourceNotFoundException;
 import com.fillforme.backend.profile.dto.AccessibilityProfileDto;
 import com.fillforme.backend.profile.entity.AccessibilityNeed;
 import com.fillforme.backend.profile.entity.AccessibilityProfile;
@@ -26,20 +25,18 @@ public class AccessibilityProfileService {
 
     @Transactional(readOnly = true)
     public AccessibilityProfileDto getProfileByUserId(UUID userId) {
-        AccessibilityProfile profile = profileRepository.findByUserId(userId)
-                .orElseGet(() -> createDefaultProfileForUser(userId));
+        User user = resolveUser(userId);
+        AccessibilityProfile profile = profileRepository.findByUserId(user.getId())
+                .orElseGet(() -> createDefaultProfileForUser(user.getId()));
 
         return mapToDto(profile);
     }
 
     @Transactional
     public AccessibilityProfileDto updateProfile(UUID userId, AccessibilityProfileDto dto) {
-        AccessibilityProfile profile = profileRepository.findByUserId(userId)
-                .orElseGet(() -> {
-                    User user = userRepository.findById(userId)
-                            .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
-                    return AccessibilityProfile.builder().user(user).build();
-                });
+        User user = resolveUser(userId);
+        AccessibilityProfile profile = profileRepository.findByUserId(user.getId())
+                .orElseGet(() -> AccessibilityProfile.builder().user(user).build());
 
         profile.setPreferredLanguage(dto.getPreferredLanguage() != null ? dto.getPreferredLanguage() : "en");
         profile.setVoicePreference(dto.getVoicePreference() != null ? dto.getVoicePreference() : false);
@@ -52,8 +49,7 @@ public class AccessibilityProfileService {
 
     @Transactional
     public AccessibilityProfile createDefaultProfileForUser(UUID userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
+        User user = resolveUser(userId);
 
         AccessibilityProfile defaultProfile = AccessibilityProfile.builder()
                 .user(user)
@@ -64,6 +60,22 @@ public class AccessibilityProfileService {
                 .build();
 
         return profileRepository.save(defaultProfile);
+    }
+
+    private User resolveUser(UUID userId) {
+        if (userId != null) {
+            return userRepository.findById(userId).orElseGet(this::getOrCreateDemoUser);
+        }
+        return getOrCreateDemoUser();
+    }
+
+    private User getOrCreateDemoUser() {
+        return userRepository.findByEmail("guest@fillforme.com")
+                .orElseGet(() -> userRepository.save(User.builder()
+                        .email("guest@fillforme.com")
+                        .fullName("Guest Accessibility User")
+                        .password("$2a$10$UnusedPasswordHashForGuestUserInFillForMe")
+                        .build()));
     }
 
     private AccessibilityProfileDto mapToDto(AccessibilityProfile profile) {

@@ -68,6 +68,7 @@ public class ConversationService {
                         sessionId, currentField.getId(), RiskLevel.HIGH, ConfirmationStatus.PENDING);
 
         boolean isCompleted = session.getSessionStatus() == SessionStatus.COMPLETED ||
+                session.getSessionStatus() == SessionStatus.REVIEW ||
                 (currentIndex == fields.size() - 1 && hasValidAnswer(currentField));
 
         int progressPercent = (int) Math.round(((double) (currentIndex + 1) / fields.size()) * 100);
@@ -154,7 +155,7 @@ public class ConversationService {
         FormSession session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Form session not found: " + sessionId));
 
-        if (!session.getUser().getId().equals(userId)) {
+        if (userId != null && !session.getUser().getId().equals(userId) && !session.getUser().getEmail().equals("guest@fillforme.com")) {
             throw new UnauthorizedAccessException("You do not have permission to access this session.");
         }
         return session;

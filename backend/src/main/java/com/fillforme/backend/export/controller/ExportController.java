@@ -25,7 +25,8 @@ public class ExportController {
     public ResponseEntity<ReviewSummaryDto> getReviewSummary(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @PathVariable UUID sessionId) {
-        ReviewSummaryDto summary = exportService.getReviewSummary(sessionId, userPrincipal.getId());
+        UUID userId = userPrincipal != null ? userPrincipal.getId() : null;
+        ReviewSummaryDto summary = exportService.getReviewSummary(sessionId, userId);
         return ResponseEntity.ok(summary);
     }
 
@@ -33,7 +34,8 @@ public class ExportController {
     public ResponseEntity<ReviewSummaryDto> submitForm(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @PathVariable UUID sessionId) {
-        ReviewSummaryDto summary = exportService.submitForm(sessionId, userPrincipal.getId());
+        UUID userId = userPrincipal != null ? userPrincipal.getId() : null;
+        ReviewSummaryDto summary = exportService.submitForm(sessionId, userId);
         return ResponseEntity.ok(summary);
     }
 
@@ -41,7 +43,8 @@ public class ExportController {
     public ResponseEntity<byte[]> exportPdf(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @PathVariable UUID sessionId) {
-        byte[] pdfBytes = exportService.generatePdfDocument(sessionId, userPrincipal.getId());
+        UUID userId = userPrincipal != null ? userPrincipal.getId() : null;
+        byte[] pdfBytes = exportService.generatePdfDocument(sessionId, userId);
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"form_" + sessionId + ".pdf\"")

@@ -8,6 +8,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api/profile")
 public class AccessibilityProfileController {
@@ -20,7 +22,8 @@ public class AccessibilityProfileController {
 
     @GetMapping
     public ResponseEntity<AccessibilityProfileDto> getProfile(@AuthenticationPrincipal UserPrincipal userPrincipal) {
-        AccessibilityProfileDto dto = profileService.getProfileByUserId(userPrincipal.getId());
+        UUID userId = userPrincipal != null ? userPrincipal.getId() : null;
+        AccessibilityProfileDto dto = profileService.getProfileByUserId(userId);
         return ResponseEntity.ok(dto);
     }
 
@@ -28,7 +31,8 @@ public class AccessibilityProfileController {
     public ResponseEntity<AccessibilityProfileDto> updateProfile(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Valid @RequestBody AccessibilityProfileDto dto) {
-        AccessibilityProfileDto updated = profileService.updateProfile(userPrincipal.getId(), dto);
+        UUID userId = userPrincipal != null ? userPrincipal.getId() : null;
+        AccessibilityProfileDto updated = profileService.updateProfile(userId, dto);
         return ResponseEntity.ok(updated);
     }
 }

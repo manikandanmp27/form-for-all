@@ -122,6 +122,10 @@ public class FormService {
 
     @Transactional(readOnly = true)
     public List<FormSessionDto> getUserSessions(UUID userId) {
+        if (userId == null) {
+            User demoUser = getOrCreateDemoUser();
+            userId = demoUser.getId();
+        }
         return sessionRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
                 .map(this::mapToDto)
                 .collect(Collectors.toList());
@@ -132,7 +136,7 @@ public class FormService {
         FormSession session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Form session not found: " + sessionId));
 
-        if (!session.getUser().getId().equals(userId)) {
+        if (userId != null && !session.getUser().getId().equals(userId) && !session.getUser().getEmail().equals("guest@fillforme.com")) {
             throw new UnauthorizedAccessException("You do not have permission to access this session.");
         }
 

@@ -25,7 +25,8 @@ public class ConversationController {
     public ResponseEntity<ConversationStepResponse> getConversationStep(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @PathVariable UUID sessionId) {
-        ConversationStepResponse response = conversationService.getConversationStep(sessionId, userPrincipal.getId());
+        UUID userId = userPrincipal != null ? userPrincipal.getId() : null;
+        ConversationStepResponse response = conversationService.getConversationStep(sessionId, userId);
         return ResponseEntity.ok(response);
     }
 
@@ -34,7 +35,8 @@ public class ConversationController {
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @PathVariable UUID sessionId,
             @Valid @RequestBody SubmitAnswerRequest request) {
-        ConversationStepResponse response = conversationService.submitAnswer(sessionId, userPrincipal.getId(), request);
+        UUID userId = userPrincipal != null ? userPrincipal.getId() : null;
+        ConversationStepResponse response = conversationService.submitAnswer(sessionId, userId, request);
         return ResponseEntity.ok(response);
     }
 }

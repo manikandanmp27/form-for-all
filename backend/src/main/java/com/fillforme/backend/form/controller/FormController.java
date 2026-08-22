@@ -47,7 +47,8 @@ public class FormController {
 
     @GetMapping
     public ResponseEntity<List<FormSessionDto>> getUserSessions(@AuthenticationPrincipal UserPrincipal userPrincipal) {
-        List<FormSessionDto> sessions = formService.getUserSessions(userPrincipal.getId());
+        UUID userId = userPrincipal != null ? userPrincipal.getId() : null;
+        List<FormSessionDto> sessions = formService.getUserSessions(userId);
         return ResponseEntity.ok(sessions);
     }
 
@@ -55,7 +56,8 @@ public class FormController {
     public ResponseEntity<FormSessionDto> getSessionById(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @PathVariable UUID sessionId) {
-        FormSessionDto session = formService.getSessionById(sessionId, userPrincipal.getId());
+        UUID userId = userPrincipal != null ? userPrincipal.getId() : null;
+        FormSessionDto session = formService.getSessionById(sessionId, userId);
         return ResponseEntity.ok(session);
     }
 }

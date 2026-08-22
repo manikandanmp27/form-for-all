@@ -25,7 +25,8 @@ public class RiskController {
     public ResponseEntity<List<RiskFlagDto>> getSessionRiskFlags(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @PathVariable UUID sessionId) {
-        List<RiskFlagDto> flags = riskService.getSessionRiskFlags(sessionId, userPrincipal.getId());
+        UUID userId = userPrincipal != null ? userPrincipal.getId() : null;
+        List<RiskFlagDto> flags = riskService.getSessionRiskFlags(sessionId, userId);
         return ResponseEntity.ok(flags);
     }
 
@@ -35,7 +36,8 @@ public class RiskController {
             @PathVariable UUID sessionId,
             @PathVariable UUID riskId,
             @RequestBody RiskConfirmationRequest request) {
-        RiskFlagDto dto = riskService.confirmRisk(sessionId, riskId, userPrincipal.getId(), request.isConfirmed());
+        UUID userId = userPrincipal != null ? userPrincipal.getId() : null;
+        RiskFlagDto dto = riskService.confirmRisk(sessionId, riskId, userId, request.isConfirmed());
         return ResponseEntity.ok(dto);
     }
 }
