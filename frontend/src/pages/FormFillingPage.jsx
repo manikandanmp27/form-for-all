@@ -9,7 +9,8 @@ import { StepProgress } from '../components/common/StepProgress';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { ErrorAlert } from '../components/common/ErrorAlert';
 import { RiskWarningModal } from '../components/risk/RiskWarningModal';
-import { Volume2, VolumeX, Mic, MicOff, HelpCircle, ArrowLeft, ArrowRight, CheckCircle2, Brain, Sparkles, ShieldAlert, FileText } from 'lucide-react';
+import { SnapToFormModal } from '../components/ocr/SnapToFormModal';
+import { Volume2, VolumeX, Mic, MicOff, HelpCircle, ArrowLeft, ArrowRight, CheckCircle2, Brain, Sparkles, ShieldAlert, FileText, Zap } from 'lucide-react';
 
 export const FormFillingPage = () => {
   const { sessionId } = useParams();
@@ -25,6 +26,8 @@ export const FormFillingPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [pendingRisk, setPendingRisk] = useState(null);
+  const [isSnapModalOpen, setIsSnapModalOpen] = useState(false);
+  const [autoFilledValues, setAutoFilledValues] = useState({});
 
   // Demo fallback steps if backend server is not reachable
   const getDemoFieldsForForm = () => {
@@ -122,6 +125,26 @@ export const FormFillingPage = () => {
     whyAsked: translated.whyAsked || rawField.whyAsked || 'Required by form issuer to complete your application.',
     fieldType: translated.fieldType || rawField.fieldType || 'TEXT',
     isRequired: translated.required ?? translated.isRequired ?? rawField.required ?? rawField.isRequired ?? true,
+  };
+
+  // Sync auto-filled OCR values into active question answerValue
+  useEffect(() => {
+    if (currentField?.id && autoFilledValues[currentField.id] && !answerValue) {
+      setAnswerValue(autoFilledValues[currentField.id]);
+    }
+  }, [currentField?.id, autoFilledValues]);
+
+  const handleApplyAutoFill = (extractedList) => {
+    const updatedMap = { ...autoFilledValues };
+    extractedList.forEach((ef) => {
+      if (ef.extractedValue) {
+        updatedMap[ef.formFieldId] = ef.extractedValue;
+        if (ef.formFieldId === currentField.id) {
+          setAnswerValue(ef.extractedValue);
+        }
+      }
+    });
+    setAutoFilledValues(updatedMap);
   };
 
   // Auto read-aloud when voice preference is enabled
@@ -240,6 +263,14 @@ export const FormFillingPage = () => {
         />
       )}
 
+      {/* Document Snap-to-Form Auto-Fill Modal */}
+      <SnapToFormModal
+        isOpen={isSnapModalOpen}
+        onClose={() => setIsSnapModalOpen(false)}
+        formFields={stepData?.fields || demoFields}
+        onApplyAutoFill={handleApplyAutoFill}
+      />
+
       <main className="max-w-4xl mx-auto px-4 py-8 flex-1 w-full space-y-6">
         {/* Header Progress */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -248,7 +279,15 @@ export const FormFillingPage = () => {
             <StepProgress currentStep={currentStep} totalSteps={totalSteps} />
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <button
+              onClick={() => setIsSnapModalOpen(true)}
+              className="p-2.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+              title="Snap-to-Form Auto-Fill from Document"
+            >
+              <Zap className="w-4 h-4 text-amber-600 fill-current" /> Auto-Fill Document
+            </button>
+
             <button
               onClick={() => navigate(`/forms/${sessionId}/review`)}
               className="p-2.5 rounded-xl border border-teal-300 bg-teal-50 hover:bg-teal-100 text-teal-900 text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
@@ -405,9 +444,16 @@ export const FormFillingPage = () => {
             {/* Input Form */}
             <form onSubmit={handleNext} className="space-y-6">
               <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  {t('yourResponse')}
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    {t('yourResponse')}
+                  </label>
+                  {autoFilledValues[currentField.id] && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-teal-800 bg-teal-100 px-2 py-0.5 rounded-md border border-teal-200">
+                      <Sparkles className="w-3 h-3 text-teal-600" /> Auto-filled from Document
+                    </span>
+                  )}
+                </div>
                 <div className="relative">
                   {currentField.fieldType === 'TEXTAREA' ? (
                     <textarea

@@ -5,8 +5,10 @@ import { ErrorAlert } from '../components/common/ErrorAlert';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { Upload, Link2, FileText, CheckCircle2, AlertCircle, Sparkles, ArrowRight } from 'lucide-react';
 
+import { performClientSideOCR } from '../utils/ocrExtraction';
+
 const STAGES = [
-  'Reading your form document...',
+  'Reading your form document using client OCR...',
   'Extracting form fields & plain-language explanations...',
   'Preparing your calm guided experience...',
 ];
@@ -56,13 +58,32 @@ export const NewFormPage = () => {
     setIsProcessing(true);
     setStageIndex(0);
 
+    let clientExtractedFields = [];
+    if (file.type.startsWith('image/')) {
+      try {
+        const ocrResult = await performClientSideOCR(file);
+        if (ocrResult && ocrResult.extractedFields && ocrResult.extractedFields.length > 0) {
+          clientExtractedFields = ocrResult.extractedFields.map((ef, idx) => ({
+            orderIndex: idx + 1,
+            fieldKey: ef.fieldKey || `field_${idx + 1}`,
+            label: ef.label || `Question ${idx + 1}`,
+            fieldType: ef.fieldKey === 'dateOfBirth' ? 'DATE' : 'TEXT',
+          }));
+        }
+      } catch (ocrErr) {
+        console.warn('Client OCR extraction skipped:', ocrErr);
+      }
+    }
+
+    setStageIndex(1);
+
     try {
-      const response = await formsApi.uploadFile(file, formTitle || file.name);
+      const response = await formsApi.uploadFile(file, formTitle || file.name, clientExtractedFields);
       const sessionId = response.id || response.sessionId;
+      setStageIndex(2);
       navigate(`/forms/${sessionId}`);
     } catch (err) {
       console.warn('Backend upload failed, creating demo session:', err.message);
-      // Fallback demo session so user can test form flow end-to-end even if backend server is offline
       setTimeout(() => {
         navigate('/forms/00000000-0000-0000-0000-000000000001');
       }, 3000);
