@@ -29,10 +29,11 @@ public class FormController {
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "title", required = false) String title,
-            @RequestParam(value = "formTitle", required = false) String formTitle) {
+            @RequestParam(value = "formTitle", required = false) String formTitle,
+            @RequestParam(value = "customFields", required = false) String customFieldsJson) {
         UUID userId = userPrincipal != null ? userPrincipal.getId() : null;
         String effectiveTitle = title != null && !title.isBlank() ? title : formTitle;
-        FormSessionDto dto = formService.createSessionFromFile(userId, file, effectiveTitle);
+        FormSessionDto dto = formService.createSessionFromFile(userId, file, effectiveTitle, customFieldsJson);
         return new ResponseEntity<>(dto, HttpStatus.CREATED);
     }
 

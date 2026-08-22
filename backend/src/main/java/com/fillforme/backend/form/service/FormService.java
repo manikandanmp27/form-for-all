@@ -24,9 +24,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -59,7 +63,7 @@ public class FormService {
     }
 
     @Transactional
-    public FormSessionDto createSessionFromFile(UUID userId, MultipartFile file, String customTitle) {
+    public FormSessionDto createSessionFromFile(UUID userId, MultipartFile file, String customTitle, String customFieldsJson) {
         User user = resolveUser(userId);
 
         String storedFilename = storageService.store(file);
@@ -70,11 +74,18 @@ public class FormService {
                 ? customTitle : file.getOriginalFilename();
 
         List<ExtractedFieldData> extracted = null;
-        try {
-            byte[] fileBytes = file.getBytes();
-            extracted = aiService.extractFieldsWithAI(fileBytes, file.getOriginalFilename(), file.getContentType());
-        } catch (Exception e) {
-            // Ignore AI failure and proceed to document processor
+
+        if (customFieldsJson != null && !customFieldsJson.isBlank()) {
+            extracted = parseCustomFieldsJson(customFieldsJson);
+        }
+
+        if (extracted == null || extracted.isEmpty()) {
+            try {
+                byte[] fileBytes = file.getBytes();
+                extracted = aiService.extractFieldsWithAI(fileBytes, file.getOriginalFilename(), file.getContentType());
+            } catch (Exception e) {
+                // Ignore AI failure and proceed to document processor
+            }
         }
 
         if (extracted == null || extracted.isEmpty()) {
@@ -94,6 +105,36 @@ public class FormService {
         }
 
         return createSessionWithExtractedFields(user, title, sourceType, null, storedFilename, extracted);
+    }
+
+    private List<ExtractedFieldData> parseCustomFieldsJson(String json) {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            List<Map<String, Object>> list = mapper.readValue(json, new TypeReference<List<Map<String, Object>>>() {});
+            List<ExtractedFieldData> result = new ArrayList<>();
+            int idx = 1;
+            for (Map<String, Object> map : list) {
+                String label = (String) map.getOrDefault("label", "Form Field " + idx);
+                String key = (String) map.getOrDefault("fieldKey", "field_" + idx);
+                String typeStr = (String) map.getOrDefault("fieldType", "TEXT");
+                FieldType type = FieldType.TEXT;
+                try {
+                    type = FieldType.valueOf(typeStr.toUpperCase());
+                } catch (Exception ignored) {}
+
+                result.add(ExtractedFieldData.builder()
+                        .orderIndex(idx++)
+                        .fieldKey(key)
+                        .label(label)
+                        .fieldType(type)
+                        .required(true)
+                        .defaultHelpText("Please enter details for " + label)
+                        .build());
+            }
+            return result;
+        } catch (Exception e) {
+            return List.of();
+        }
     }
 
     @Transactional
