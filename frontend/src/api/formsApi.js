@@ -8,11 +8,8 @@ export const formsApi = {
       formData.append('title', formTitle);
       formData.append('formTitle', formTitle);
     }
-    const response = await apiClient.post('/forms', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    // Do NOT pass hardcoded 'Content-Type': 'multipart/form-data' so Axios dynamically sets boundary header
+    const response = await apiClient.post('/forms', formData);
     return response.data;
   },
 

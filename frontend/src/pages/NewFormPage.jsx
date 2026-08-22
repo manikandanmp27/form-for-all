@@ -64,7 +64,7 @@ export const NewFormPage = () => {
       console.warn('Backend upload failed, creating demo session:', err.message);
       // Fallback demo session so user can test form flow end-to-end even if backend server is offline
       setTimeout(() => {
-        navigate('/forms/demo-session-1');
+        navigate('/forms/00000000-0000-0000-0000-000000000001');
       }, 3000);
     }
   };
@@ -88,7 +88,7 @@ export const NewFormPage = () => {
     } catch (err) {
       console.warn('Backend URL ingestion failed, creating demo session:', err.message);
       setTimeout(() => {
-        navigate('/forms/demo-session-1');
+        navigate('/forms/00000000-0000-0000-0000-000000000001');
       }, 3000);
     }
   };

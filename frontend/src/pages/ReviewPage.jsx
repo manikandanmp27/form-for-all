@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { exportApi } from '../api/exportApi';
 import { useVoice } from '../context/VoiceContext';
+import { useProfile } from '../context/ProfileContext';
 import { ProfileBar } from '../components/layout/ProfileBar';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { ErrorAlert } from '../components/common/ErrorAlert';
@@ -202,7 +203,7 @@ export const ReviewPage = () => {
                     <p className="text-xs text-slate-500">{field.description}</p>
                   )}
                   <p className="text-sm font-semibold text-teal-950 bg-slate-50 p-2.5 rounded-lg border border-slate-200 inline-block mt-1">
-                    {field.value || <em className="text-slate-400 font-normal">Not answered</em>}
+                    {field.value || field.currentAnswer || <em className="text-slate-400 font-normal">Not answered</em>}
                   </p>
                 </div>
 

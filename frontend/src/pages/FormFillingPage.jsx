@@ -148,7 +148,7 @@ export const FormFillingPage = () => {
     setIsSubmitting(true);
     try {
       const res = await conversationApi.submitAnswer(sessionId, currentField.id, answerValue, 'NEXT');
-      if (res.isCompleted || res.currentStep > res.totalSteps) {
+      if (res.isCompleted || res.currentStep > res.totalSteps || currentStep >= totalSteps) {
         navigate(`/forms/${sessionId}/review`);
       } else {
         setStepData(res);
@@ -241,6 +241,14 @@ export const FormFillingPage = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate(`/forms/${sessionId}/review`)}
+              className="p-2.5 rounded-xl border border-teal-300 bg-teal-50 hover:bg-teal-100 text-teal-900 text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+              title="Go to Review Summary"
+            >
+              <FileText className="w-4 h-4 text-teal-700" /> {t('reviewAnswers')}
+            </button>
+
             <button
               onClick={() => {
                 const text = `${currentField.label}. ${currentField.description || ''}`;
