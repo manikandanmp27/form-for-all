@@ -25,7 +25,7 @@ export const DashboardPage = () => {
         // Fallback demo session if backend returns empty or unavailable
         setSessions([
           {
-            id: 'demo-session-1',
+            id: '00000000-0000-0000-0000-000000000001',
             formTitle: 'Bank Account Nomination Form',
             formSourceType: 'PDF_UPLOAD',
             sessionStatus: 'IN_PROGRESS',

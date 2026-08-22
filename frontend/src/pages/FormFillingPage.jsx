@@ -9,7 +9,7 @@ import { StepProgress } from '../components/common/StepProgress';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { ErrorAlert } from '../components/common/ErrorAlert';
 import { RiskWarningModal } from '../components/risk/RiskWarningModal';
-import { Volume2, VolumeX, Mic, MicOff, HelpCircle, ArrowLeft, ArrowRight, CheckCircle2, Brain, Sparkles, ShieldAlert } from 'lucide-react';
+import { Volume2, VolumeX, Mic, MicOff, HelpCircle, ArrowLeft, ArrowRight, CheckCircle2, Brain, Sparkles, ShieldAlert, FileText } from 'lucide-react';
 
 export const FormFillingPage = () => {
   const { sessionId } = useParams();
@@ -113,8 +113,16 @@ export const FormFillingPage = () => {
     fetchState();
   }, [sessionId, demoStepIndex]);
 
-  const rawField = stepData?.currentField || {};
-  const currentField = tField(rawField);
+  const rawField = stepData?.currentField || demoFields[demoStepIndex] || {};
+  const translated = tField(rawField);
+  const currentField = {
+    ...translated,
+    label: translated.label || rawField.label || rawField.simplifiedQuestionText || 'Form Question',
+    description: translated.description || rawField.description || rawField.plainLanguageExplanation || rawField.defaultHelpText || 'Please provide details for this field.',
+    whyAsked: translated.whyAsked || rawField.whyAsked || 'Required by form issuer to complete your application.',
+    fieldType: translated.fieldType || rawField.fieldType || 'TEXT',
+    isRequired: translated.required ?? translated.isRequired ?? rawField.required ?? rawField.isRequired ?? true,
+  };
 
   // Auto read-aloud when voice preference is enabled
   useEffect(() => {
