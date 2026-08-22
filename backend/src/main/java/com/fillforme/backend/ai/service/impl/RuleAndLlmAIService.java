@@ -1,6 +1,6 @@
+
 package com.fillforme.backend.ai.service.impl;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fillforme.backend.ai.dto.AIFieldExplanation;
@@ -41,6 +41,14 @@ public class RuleAndLlmAIService implements AIService {
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
 
+    // Supported active Gemini models in order of priority
+    private static final List<String> GEMINI_MODELS = List.of(
+            "gemini-2.5-flash",
+            "gemini-2.0-flash",
+            "gemini-1.5-flash-latest",
+            "gemini-1.5-pro"
+    );
+
     public RuleAndLlmAIService() {
         this.restTemplate = new RestTemplate();
         this.objectMapper = new ObjectMapper();
@@ -49,15 +57,11 @@ public class RuleAndLlmAIService implements AIService {
     @Override
     public List<ExtractedFieldData> extractFieldsWithAI(byte[] fileBytes, String filename, String mimeType) {
         if (apiKey != null && !apiKey.isBlank() && fileBytes != null && fileBytes.length > 0) {
-            try {
-                log.info("Sending document '{}' ({} bytes) to Gemini Vision AI for live field extraction...", filename, fileBytes.length);
-                List<ExtractedFieldData> aiExtracted = callGeminiVisionForFields(fileBytes, filename, mimeType);
-                if (aiExtracted != null && !aiExtracted.isEmpty()) {
-                    log.info("Gemini Vision AI successfully extracted {} fields from document '{}'", aiExtracted.size(), filename);
-                    return aiExtracted;
-                }
-            } catch (Exception e) {
-                log.warn("Gemini Vision AI extraction failed for '{}', falling back to document parser: {}", filename, e.getMessage());
+            log.info("Sending document '{}' ({} bytes) to Gemini Vision AI for live field extraction...", filename, fileBytes.length);
+            List<ExtractedFieldData> aiExtracted = callGeminiVisionForFields(fileBytes, filename, mimeType);
+            if (aiExtracted != null && !aiExtracted.isEmpty()) {
+                log.info("Gemini Vision AI successfully extracted {} fields from document '{}'", aiExtracted.size(), filename);
+                return aiExtracted;
             }
         }
         log.info("No valid AI API key present or AI extraction skipped for '{}'. Handing off to DocumentProcessor.", filename);
@@ -80,8 +84,6 @@ public class RuleAndLlmAIService implements AIService {
                 "- \"defaultHelpText\": short 1-sentence guidance for filling this field\n" +
                 "Do NOT include markdown formatting, backticks, or extra text. Output raw JSON array only.";
 
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
-
         Map<String, Object> body = Map.of(
                 "contents", List.of(
                         Map.of("parts", List.of(
@@ -96,14 +98,25 @@ public class RuleAndLlmAIService implements AIService {
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
-        ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
 
-        if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-            return parseGeminiJsonResponse(response.getBody());
+        for (String model : GEMINI_MODELS) {
+            try {
+                String url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + apiKey;
+                ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
+
+                if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                    List<ExtractedFieldData> fields = parseGeminiJsonResponse(response.getBody());
+                    if (!fields.isEmpty()) {
+                        return fields;
+                    }
+                }
+            } catch (Exception e) {
+                log.debug("Gemini model {} failed for vision extraction: {}", model, e.getMessage());
+            }
         }
 
+        log.warn("Gemini Vision AI calls failed for '{}', using DocumentProcessor fallback.", filename);
         return List.of();
     }
 
@@ -114,7 +127,6 @@ public class RuleAndLlmAIService implements AIService {
             JsonNode candidates = root.path("candidates");
             if (candidates.isArray() && candidates.size() > 0) {
                 String text = candidates.get(0).path("content").path("parts").get(0).path("text").asText();
-                // Clean markdown code fence if present
                 String cleanedJson = text.replaceAll("```json", "").replaceAll("```", "").trim();
 
                 JsonNode fieldArray = objectMapper.readTree(cleanedJson);
@@ -156,168 +168,87 @@ public class RuleAndLlmAIService implements AIService {
         String preferredLang = profile != null && profile.getPreferredLanguage() != null ? profile.getPreferredLanguage() : "English";
         boolean isLowCognitive = profile != null && profile.getCognitiveLoadPreference() == CognitiveLoadPreference.LOW;
 
-        if (apiKey != null && !apiKey.isBlank()) {
-            try {
-                return callLlmForFieldExplanation(fieldKey, label, helpText, preferredLang, isLowCognitive);
-            } catch (Exception e) {
-                log.warn("External LLM AI call failed, using smart document AI engine fallback: {}", e.getMessage());
-            }
-        }
-
         return generateSmartFallbackExplanation(fieldKey, label, helpText, preferredLang, isLowCognitive);
-    }
-
-    private AIFieldExplanation callLlmForFieldExplanation(String fieldKey, String label, String helpText, String lang, boolean isLowCognitive) {
-        String prompt = String.format(
-                "You are an accessibility AI co-pilot. Analyze this form field: '%s' (Help text: '%s'). " +
-                "Language requested: '%s'. Cognitive mode: '%s'. " +
-                "Respond in plain JSON with keys: simplifiedQuestionText, plainLanguageExplanation, whyAskedExplanation.",
-                label, helpText != null ? helpText : "", lang, isLowCognitive ? "LOW (Simple single-card view)" : "STANDARD"
-        );
-
-        if ("gemini".equalsIgnoreCase(aiProvider)) {
-            String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
-            Map<String, Object> body = Map.of(
-                    "contents", List.of(
-                            Map.of("parts", List.of(Map.of("text", prompt)))
-                    )
-            );
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
-            ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
-
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                log.info("Successfully received LLM response from Gemini API for field: {}", label);
-            }
-        }
-
-        return generateSmartFallbackExplanation(fieldKey, label, helpText, lang, isLowCognitive);
     }
 
     private AIFieldExplanation generateSmartFallbackExplanation(String fieldKey, String label, String helpText, String lang, boolean isLowCognitive) {
         String lowerLabel = (label != null ? label : fieldKey).toLowerCase(Locale.ROOT);
-
-        String plainExplanation;
+        String simplified;
+        String explanation;
         String whyAsked;
-        String simplifiedQuestion;
 
-        if (lowerLabel.contains("aadhaar") || lowerLabel.contains("aadhar") || lowerLabel.contains("uid")) {
-            plainExplanation = "Your unique 12-digit government identification number issued by UIDAI.";
-            whyAsked = "Required by identity verification authorities to validate official residency records.";
-            simplifiedQuestion = "What is your 12-digit Aadhaar number?";
-        } else if (lowerLabel.contains("name")) {
-            plainExplanation = "Your full official legal name exactly as shown on your government ID card.";
-            whyAsked = "Used to establish account ownership and legal identity match.";
-            simplifiedQuestion = "What is your full legal name?";
+        if (lowerLabel.contains("name") || lowerLabel.contains("applicant") || lowerLabel.contains("taxpayer") || lowerLabel.contains("patient")) {
+            simplified = isLowCognitive ? "What is your full legal name?" : "Enter your full legal name";
+            explanation = "This is your official name as shown on government documents.";
+            whyAsked = "Required to verify your legal identity and assign this form to you.";
         } else if (lowerLabel.contains("dob") || lowerLabel.contains("birth")) {
-            plainExplanation = "Your official date of birth as recorded on identity documents.";
-            whyAsked = "Used to verify your age eligibility and legal capacity.";
-            simplifiedQuestion = "What is your date of birth?";
-        } else if (lowerLabel.contains("address") || lowerLabel.contains("residence")) {
-            plainExplanation = "The physical house or building address where you permanently reside.";
-            whyAsked = "Required for official postal notices, verification, and location eligibility.";
-            simplifiedQuestion = "What is your permanent residential address?";
-        } else if (lowerLabel.contains("bank") || lowerLabel.contains("account") || lowerLabel.contains("ifsc")) {
-            plainExplanation = "Your registered bank account and branch code details.";
-            whyAsked = "Required to deposit benefits or payments directly into your account.";
-            simplifiedQuestion = "What is your bank account number?";
-        } else if (lowerLabel.contains("nominee") || lowerLabel.contains("beneficiary")) {
-            plainExplanation = "The person designated to inherit or receive funds if something happens to you.";
-            whyAsked = "Required by regulations to assign legal beneficiary transfer rights.";
-            simplifiedQuestion = "Who is your primary nominee?";
-        } else if (lowerLabel.contains("phone") || lowerLabel.contains("mobile")) {
-            plainExplanation = "Your active 10-digit mobile phone number for security codes and calls.";
-            whyAsked = "Used for two-factor authentication and urgent status SMS alerts.";
-            simplifiedQuestion = "What is your mobile phone number?";
+            simplified = isLowCognitive ? "When were you born?" : "Select your date of birth";
+            explanation = "Your official date of birth.";
+            whyAsked = "Required to verify legal age eligibility.";
+        } else if (lowerLabel.contains("aadhaar") || lowerLabel.contains("id") || lowerLabel.contains("pan") || lowerLabel.contains("ssn")) {
+            simplified = isLowCognitive ? "What is your ID number?" : "Enter your official ID number";
+            explanation = "Your official identification card number.";
+            whyAsked = "Required for official identification and background verification.";
+        } else if (lowerLabel.contains("address") || lowerLabel.contains("residence") || lowerLabel.contains("branch")) {
+            simplified = isLowCognitive ? "Where do you live?" : "Enter your permanent address";
+            explanation = "Your current residential street address.";
+            whyAsked = "Required for official physical correspondence and location verification.";
         } else if (lowerLabel.contains("email")) {
-            plainExplanation = "Your active electronic email address for digital statements.";
-            whyAsked = "Used to send instant digital receipts, updates, and session recovery links.";
-            simplifiedQuestion = "What is your email address?";
-        } else if (lowerLabel.contains("declaration") || lowerLabel.contains("consent") || lowerLabel.contains("agree")) {
-            plainExplanation = "Your legal confirmation that all answers provided are honest and accurate.";
-            whyAsked = "Required by law before processing any official application.";
-            simplifiedQuestion = "Do you confirm all provided details are true?";
+            simplified = isLowCognitive ? "What is your email?" : "Enter your email address";
+            explanation = "Your primary electronic mail address.";
+            whyAsked = "Used to send instant confirmation receipts and form updates.";
+        } else if (lowerLabel.contains("phone") || lowerLabel.contains("mobile") || lowerLabel.contains("contact")) {
+            simplified = isLowCognitive ? "What is your phone number?" : "Enter your mobile phone number";
+            explanation = "Your active telephone or mobile number.";
+            whyAsked = "Used for SMS alerts and urgent status updates.";
+        } else if (lowerLabel.contains("account") || lowerLabel.contains("bank") || lowerLabel.contains("ifsc")) {
+            simplified = isLowCognitive ? "What are your bank details?" : "Enter your bank account number";
+            explanation = "Your official bank account and branch details.";
+            whyAsked = "Required for direct financial processing or refunds.";
+        } else if (lowerLabel.contains("consent") || lowerLabel.contains("declaration") || lowerLabel.contains("agree")) {
+            simplified = isLowCognitive ? "Do you confirm these details?" : "Confirm legal declaration";
+            explanation = "A legal statement confirming that all information provided is accurate.";
+            whyAsked = "Required by law to authorize processing of your application.";
         } else {
-            plainExplanation = helpText != null && !helpText.isBlank() ? helpText : "Information requested for " + label + ".";
-            whyAsked = "Required by the processing authority to review your application.";
-            simplifiedQuestion = "What is your " + label + "?";
-        }
-
-        if (isLowCognitive) {
-            plainExplanation = "Calm Guidance: " + plainExplanation;
+            simplified = isLowCognitive ? "Please provide: " + label : "Enter details for " + label;
+            explanation = helpText != null && !helpText.isBlank() ? helpText : "Provide the requested details for this field.";
+            whyAsked = "Required by the form issuer to complete your application.";
         }
 
         return AIFieldExplanation.builder()
-                .fieldKey(fieldKey)
-                .plainLanguageExplanation(plainExplanation)
+                .simplifiedQuestionText(simplified)
+                .plainLanguageExplanation(explanation)
                 .whyAskedExplanation(whyAsked)
-                .simplifiedQuestionText(simplifiedQuestion)
                 .build();
-    }
-
-    private List<ExtractedFieldData> generateSmartFallbackFields(String filename) {
-        String lowerName = filename != null ? filename.toLowerCase() : "";
-
-        if (lowerName.contains("aadhaar") || lowerName.contains("aadhar") || lowerName.contains("uidai") ||
-            lowerName.contains("identity") || lowerName.contains("id") || lowerName.contains("voter") || lowerName.contains("passport")) {
-            return List.of(
-                    ExtractedFieldData.builder().fieldKey("applicantFullName").label("Full Legal Name").fieldType(FieldType.TEXT).required(true).orderIndex(1).defaultHelpText("Enter full name as on your ID document").build(),
-                    ExtractedFieldData.builder().fieldKey("aadhaarNumber").label("Aadhaar / ID Number").fieldType(FieldType.TEXT).required(true).orderIndex(2).defaultHelpText("12-digit Aadhaar / Enrollment Number").build(),
-                    ExtractedFieldData.builder().fieldKey("dateOfBirth").label("Date of Birth").fieldType(FieldType.DATE).required(true).orderIndex(3).defaultHelpText("Select your official birth date").build(),
-                    ExtractedFieldData.builder().fieldKey("gender").label("Gender").fieldType(FieldType.TEXT).required(true).orderIndex(4).defaultHelpText("Male / Female / Transgender").build(),
-                    ExtractedFieldData.builder().fieldKey("mobileNumber").label("Mobile Phone Number").fieldType(FieldType.PHONE).required(true).orderIndex(5).defaultHelpText("Registered mobile number").build(),
-                    ExtractedFieldData.builder().fieldKey("permanentAddress").label("Permanent Residential Address").fieldType(FieldType.TEXT).required(true).orderIndex(6).defaultHelpText("Full residential address with PIN code").build(),
-                    ExtractedFieldData.builder().fieldKey("declarationConsent").label("Declaration & Authorization Consent").fieldType(FieldType.DECLARATION).required(true).orderIndex(7).defaultHelpText("Confirm legal consent for identity verification").build()
-            );
-        }
-
-        return List.of(
-                ExtractedFieldData.builder().fieldKey("applicantFullName").label("Full Name").fieldType(FieldType.TEXT).required(true).orderIndex(1).defaultHelpText("Enter your official full name").build(),
-                ExtractedFieldData.builder().fieldKey("dateOfBirth").label("Date of Birth").fieldType(FieldType.DATE).required(true).orderIndex(2).defaultHelpText("Select your official birth date").build(),
-                ExtractedFieldData.builder().fieldKey("mobileNumber").label("Mobile Phone Number").fieldType(FieldType.PHONE).required(true).orderIndex(3).defaultHelpText("Enter your contact phone number").build(),
-                ExtractedFieldData.builder().fieldKey("permanentAddress").label("Permanent Residential Address").fieldType(FieldType.TEXT).required(true).orderIndex(4).defaultHelpText("Enter your primary address").build(),
-                ExtractedFieldData.builder().fieldKey("declarationConsent").label("Legal Declaration & Consent").fieldType(FieldType.DECLARATION).required(true).orderIndex(5).defaultHelpText("Confirm your legal consent").build()
-        );
     }
 
     @Override
     public AIRiskEvaluation evaluateRisk(String fieldKey, String label, String answerValue) {
-        String combined = (fieldKey + " " + label).toLowerCase(Locale.ROOT);
+        String lowerLabel = (label != null ? label : fieldKey).toLowerCase(Locale.ROOT);
 
-        if (combined.contains("aadhaar") || combined.contains("uid") || combined.contains("ssn") || combined.contains("identity")) {
+        if (lowerLabel.contains("nominee") || lowerLabel.contains("beneficiary") || lowerLabel.contains("transfer")) {
             return AIRiskEvaluation.builder()
                     .riskLevel(RiskLevel.HIGH)
-                    .warningTitle("High Risk: Critical Identity Document Entry")
-                    .warningReason("You are entering a sensitive national identity number.")
-                    .consequenceExplanation("An incorrect Aadhaar or ID number will cause your application verification to fail or be rejected.")
+                    .warningTitle("Beneficiary Change Alert")
+                    .warningReason("You are designating a legal beneficiary or nominee.")
+                    .consequenceExplanation("This choice legally entitles the person named to inherit or receive account assets upon claim.")
                     .build();
         }
 
-        if (combined.contains("bank") || combined.contains("account") || combined.contains("ifsc")) {
+        if (lowerLabel.contains("pan") || lowerLabel.contains("aadhaar") || lowerLabel.contains("bank") || lowerLabel.contains("account")) {
             return AIRiskEvaluation.builder()
-                    .riskLevel(RiskLevel.HIGH)
-                    .warningTitle("High Risk: Financial Account Update")
-                    .warningReason("You are submitting financial bank account details.")
-                    .consequenceExplanation("Incorrect bank details may misroute future payments or direct deposit benefits.")
-                    .build();
-        }
-
-        if (combined.contains("nominee") || combined.contains("beneficiary")) {
-            return AIRiskEvaluation.builder()
-                    .riskLevel(RiskLevel.HIGH)
-                    .warningTitle("High Risk: Nominee Rights Update")
-                    .warningReason("You are designating the primary beneficiary.")
-                    .consequenceExplanation("Changing your nominee overwrites existing legal beneficiary allocations on record.")
+                    .riskLevel(RiskLevel.STANDARD)
+                    .warningTitle("Sensitive Financial/ID Field")
+                    .warningReason("You are sharing sensitive personal identifier details.")
+                    .consequenceExplanation("Ensure the issuer website is authentic before final submission.")
                     .build();
         }
 
         return AIRiskEvaluation.builder()
-                .riskLevel(RiskLevel.STANDARD)
-                .warningTitle("Standard Information Entry")
-                .warningReason("Standard field entry.")
-                .consequenceExplanation("Please review for typo corrections.")
+                .riskLevel(RiskLevel.INFORMATIONAL)
+                .warningTitle("Standard Information")
+                .warningReason("Standard low-risk form field.")
+                .consequenceExplanation("No significant legal or financial risk detected.")
                 .build();
     }
 }
