@@ -14,14 +14,35 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.UUID;
 
+import com.fillforme.backend.ai.service.AIService;
+import com.fillforme.backend.document.dto.ExtractedFieldData;
+
 @RestController
 @RequestMapping("/api/forms")
 public class FormController {
 
     private final FormService formService;
+    private final AIService aiService;
 
-    public FormController(FormService formService) {
+    public FormController(FormService formService, AIService aiService) {
         this.formService = formService;
+        this.aiService = aiService;
+    }
+
+    @PostMapping(value = "/extract-values", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<List<ExtractedFieldData>> extractValuesFromDocument(
+            @RequestParam("file") MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+        try {
+            byte[] bytes = file.getBytes();
+            List<ExtractedFieldData> fields = aiService.extractFieldsWithAI(
+                    bytes, file.getOriginalFilename(), file.getContentType());
+            return ResponseEntity.ok(fields);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

@@ -30,4 +30,13 @@ export const formsApi = {
     const response = await apiClient.get(`/forms/${sessionId}`);
     return response.data;
   },
+
+  extractValuesFromDocument: async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiClient.post('/forms/extract-values', formData, {
+      timeout: 120000,
+    });
+    return response.data;
+  },
 };

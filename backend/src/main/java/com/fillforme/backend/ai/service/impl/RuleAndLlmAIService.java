@@ -46,8 +46,9 @@ public class RuleAndLlmAIService implements AIService {
     // Supported active Gemini models in order of priority
     private static final List<String> GEMINI_MODELS = List.of(
             "gemini-2.5-flash",
-            "gemini-2.0-flash",
-            "gemini-1.5-flash"
+            "gemini-1.5-flash",
+            "gemini-1.5-pro",
+            "gemini-2.0-flash-exp"
     );
 
     public RuleAndLlmAIService() {
@@ -176,13 +177,14 @@ public class RuleAndLlmAIService implements AIService {
 
         String base64Data = Base64.getEncoder().encodeToString(fileBytes);
 
-        String prompt = "Inspect this form document image/file carefully. Extract ALL input form fields that a user needs to fill out in this form. " +
-                "Return ONLY a valid JSON array of objects. Each object must have these keys:\n" +
-                "- \"fieldKey\": string in camelCase (e.g. \"applicantName\", \"aadhaarNumber\", \"dateOfBirth\")\n" +
-                "- \"label\": human-readable title (e.g. \"Applicant Full Name\", \"Aadhaar Number\")\n" +
-                "- \"fieldType\": one of \"TEXT\", \"DATE\", \"EMAIL\", \"PHONE\", \"SELECT\", \"CHECKBOX\", \"DECLARATION\"\n" +
+        String prompt = "Inspect this document image/file carefully. Extract ALL field labels AND their actual values printed/written on the document.\n" +
+                "Return ONLY a valid JSON array of objects. Each object MUST have these exact keys:\n" +
+                "- \"fieldKey\": string in camelCase (e.g. \"applicantName\", \"fatherName\", \"dateOfBirth\", \"address\", \"aadhaarNumber\")\n" +
+                "- \"label\": human-readable title (e.g. \"Full Name\", \"Father's Name\", \"Date of Birth\", \"Address\")\n" +
+                "- \"value\": string (the ACTUAL text value printed/written on the document image, e.g. \"John Doe\", \"15/08/1995\", \"9876543210\")\n" +
+                "- \"fieldType\": one of \"TEXT\", \"DATE\", \"EMAIL\", \"PHONE\", \"SELECT\", \"CHECKBOX\"\n" +
                 "- \"required\": boolean true or false\n" +
-                "- \"defaultHelpText\": short 1-sentence guidance for filling this field\n" +
+                "- \"defaultHelpText\": short guidance text\n" +
                 "Do NOT include markdown formatting, backticks, or extra text. Output raw JSON array only.";
 
         Map<String, Object> body = Map.of(
@@ -236,6 +238,10 @@ public class RuleAndLlmAIService implements AIService {
                     for (JsonNode node : fieldArray) {
                         String fieldKey = node.path("fieldKey").asText("field_" + order);
                         String label = node.path("label").asText("Field " + order);
+                        String extractedVal = node.path("value").asText("");
+                        if (extractedVal.isBlank()) {
+                            extractedVal = node.path("extractedValue").asText("");
+                        }
                         String fieldTypeStr = node.path("fieldType").asText("TEXT").toUpperCase();
                         boolean required = node.path("required").asBoolean(true);
                         String helpText = node.path("defaultHelpText").asText("Please enter " + label);
@@ -250,6 +256,7 @@ public class RuleAndLlmAIService implements AIService {
                         fields.add(ExtractedFieldData.builder()
                                 .fieldKey(fieldKey)
                                 .label(label)
+                                .extractedValue(extractedVal)
                                 .fieldType(fieldType)
                                 .required(required)
                                 .orderIndex(order++)
@@ -259,7 +266,7 @@ public class RuleAndLlmAIService implements AIService {
                 }
             }
         } catch (Exception e) {
-            log.warn("Could not parse JSON array from Gemini Vision response: {}", e.getMessage());
+            log.warn("Failed to parse Gemini Vision JSON response: {}", e.getMessage());
         }
         return fields;
     }

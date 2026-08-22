@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import { performClientSideOCR, mapExtractedToFormFields } from '../../utils/ocrExtraction';
 
+import { formsApi } from '../../api/formsApi';
+
 export const SnapToFormModal = ({ isOpen, onClose, formFields = [], onApplyAutoFill }) => {
   const [activeTab, setActiveTab] = useState('upload'); // 'upload' | 'camera'
   const [selectedImage, setSelectedImage] = useState(null);
@@ -110,19 +112,67 @@ export const SnapToFormModal = ({ isOpen, onClose, formFields = [], onApplyAutoF
 
     setIsProcessing(true);
     setOcrError('');
-    setProgressPercentage(5);
-    setProgressStatus('Preparing document for OCR...');
+    setProgressPercentage(10);
+    setProgressStatus('Scanning document with Gemini Vision AI...');
 
     try {
-      const result = await performClientSideOCR(selectedImage, (statusText, percent) => {
-        setProgressStatus(statusText);
-        setProgressPercentage(percent);
-      });
+      let mapped = [];
+      try {
+        const aiFields = await formsApi.extractValuesFromDocument(selectedImage);
+        if (aiFields && aiFields.length > 0) {
+          setProgressPercentage(80);
+          setProgressStatus('Matching AI extracted fields to form...');
+          mapped = mapExtractedToFormFields(
+            aiFields.map((f) => ({
+              fieldKey: f.fieldKey,
+              label: f.label,
+              value: f.extractedValue || f.value || '',
+              confidence: 'HIGH',
+            })),
+            formFields
+          );
 
-      const mapped = mapExtractedToFormFields(result.extractedFields, formFields);
+          if (mapped.length === 0) {
+            mapped = aiFields
+              .map((f, idx) => ({
+                formFieldId: formFields[idx]?.id || `custom_${idx}`,
+                fieldKey: formFields[idx]?.fieldKey || f.fieldKey,
+                label: formFields[idx]?.label || f.label || `Extracted ${idx + 1}`,
+                extractedValue: f.extractedValue || f.value || '',
+                confidence: 'HIGH',
+                isAutoFilled: true,
+              }))
+              .filter((item) => item.extractedValue);
+          }
+        }
+      } catch (aiErr) {
+        console.warn('Backend Vision AI field extraction fallback to client Tesseract:', aiErr);
+      }
 
       if (mapped.length === 0) {
-        setOcrError("We couldn't read enough matching information from this document. Try a clearer image or fill fields manually.");
+        setProgressPercentage(40);
+        setProgressStatus('Running fallback client Tesseract OCR...');
+        const result = await performClientSideOCR(selectedImage, (statusText, percent) => {
+          setProgressStatus(statusText);
+          setProgressPercentage(percent);
+        });
+
+        mapped = mapExtractedToFormFields(result.extractedFields, formFields);
+
+        if (mapped.length === 0 && result.extractedFields?.length > 0) {
+          mapped = result.extractedFields.map((ef, idx) => ({
+            formFieldId: formFields[idx]?.id || `custom_${idx}`,
+            fieldKey: formFields[idx]?.fieldKey || ef.fieldKey,
+            label: formFields[idx]?.label || ef.label || `Extracted Text ${idx + 1}`,
+            extractedValue: ef.value,
+            confidence: 'LOW',
+            isAutoFilled: true,
+          }));
+        }
+      }
+
+      if (mapped.length === 0) {
+        setOcrError("We couldn't read enough matching information from this document. Try uploading a clearer image or fill fields manually.");
         setExtractedFields([]);
       } else {
         setExtractedFields(mapped);

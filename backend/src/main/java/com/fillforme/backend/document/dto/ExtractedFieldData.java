@@ -10,17 +10,19 @@ public class ExtractedFieldData {
     private boolean required;
     private int orderIndex;
     private String defaultHelpText;
+    private String extractedValue;
     private List<String> options;
 
     public ExtractedFieldData() {}
 
-    public ExtractedFieldData(String fieldKey, String label, FieldType fieldType, boolean required, int orderIndex, String defaultHelpText, List<String> options) {
+    public ExtractedFieldData(String fieldKey, String label, FieldType fieldType, boolean required, int orderIndex, String defaultHelpText, String extractedValue, List<String> options) {
         this.fieldKey = fieldKey;
         this.label = label;
         this.fieldType = fieldType;
         this.required = required;
         this.orderIndex = orderIndex;
         this.defaultHelpText = defaultHelpText;
+        this.extractedValue = extractedValue;
         this.options = options;
     }
 
@@ -46,6 +48,9 @@ public class ExtractedFieldData {
     public String getDefaultHelpText() { return defaultHelpText; }
     public void setDefaultHelpText(String defaultHelpText) { this.defaultHelpText = defaultHelpText; }
 
+    public String getExtractedValue() { return extractedValue; }
+    public void setExtractedValue(String extractedValue) { this.extractedValue = extractedValue; }
+
     public List<String> getOptions() { return options; }
     public void setOptions(List<String> options) { this.options = options; }
 
@@ -56,6 +61,7 @@ public class ExtractedFieldData {
         private boolean required;
         private int orderIndex;
         private String defaultHelpText;
+        private String extractedValue;
         private List<String> options;
 
         ExtractedFieldDataBuilder() {}
@@ -66,10 +72,11 @@ public class ExtractedFieldData {
         public ExtractedFieldDataBuilder required(boolean required) { this.required = required; return this; }
         public ExtractedFieldDataBuilder orderIndex(int orderIndex) { this.orderIndex = orderIndex; return this; }
         public ExtractedFieldDataBuilder defaultHelpText(String defaultHelpText) { this.defaultHelpText = defaultHelpText; return this; }
+        public ExtractedFieldDataBuilder extractedValue(String extractedValue) { this.extractedValue = extractedValue; return this; }
         public ExtractedFieldDataBuilder options(List<String> options) { this.options = options; return this; }
 
         public ExtractedFieldData build() {
-            return new ExtractedFieldData(fieldKey, label, fieldType, required, orderIndex, defaultHelpText, options);
+            return new ExtractedFieldData(fieldKey, label, fieldType, required, orderIndex, defaultHelpText, extractedValue, options);
         }
     }
 }

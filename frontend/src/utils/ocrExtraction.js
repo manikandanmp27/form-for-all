@@ -7,13 +7,25 @@ const FIELD_ALIASES = [
   {
     key: 'applicantFullName',
     label: 'Full Name',
-    aliases: ['name', 'full name', 'applicant name', 'candidate name', 'holder name', 'person name'],
-    pattern: /(?:name|full name|applicant name|candidate name|holder name)[\s:-]+([A-Za-z\s.]{3,40})/i,
+    aliases: ['name', 'full name', 'applicant name', 'candidate name', 'holder name', 'person name', 'first name', 'last name'],
+    pattern: /(?:name|full name|applicant name|candidate name|holder name|first name)[\s:-]+([A-Za-z\s.]{3,40})/i,
+  },
+  {
+    key: 'fatherName',
+    label: "Father's Name",
+    aliases: ["father name", "father's name", "father", "s/o", "d/o", "w/o", "guardian", "parent name"],
+    pattern: /(?:father'?s?\s*name|father|s\/o|d\/o|w\/o|guardian)[\s:-]+([A-Za-z\s.]{3,40})/i,
+  },
+  {
+    key: 'motherName',
+    label: "Mother's Name",
+    aliases: ["mother name", "mother's name", "mother"],
+    pattern: /(?:mother'?s?\s*name|mother)[\s:-]+([A-Za-z\s.]{3,40})/i,
   },
   {
     key: 'dateOfBirth',
     label: 'Date of Birth',
-    aliases: ['dob', 'date of birth', 'birth date', 'born'],
+    aliases: ['dob', 'date of birth', 'birth date', 'born', 'birth'],
     pattern: /(?:dob|date of birth|birth date|born)[\s:-]+(\d{2}[/-]\d{2}[/-]\d{4}|\d{4}[/-]\d{2}[/-]\d{2})/i,
   },
   {
@@ -25,8 +37,14 @@ const FIELD_ALIASES = [
   {
     key: 'contactPhone',
     label: 'Phone Number',
-    aliases: ['mobile', 'phone', 'contact', 'telephone', 'mobile no', 'phone no'],
-    pattern: /(?:mobile|phone|contact|tel)[\s:-]+(\+?\d{1,3}[\s-]?)?([6-9]\d{9})/i,
+    aliases: ['mobile', 'phone', 'contact', 'telephone', 'mobile no', 'phone no', 'cell'],
+    pattern: /(?:mobile|phone|contact|tel|cell)[\s:-]+(\+?\d{1,3}[\s-]?)?([6-9]\d{9})/i,
+  },
+  {
+    key: 'emailAddress',
+    label: 'Email Address',
+    aliases: ['email', 'e-mail', 'email address', 'mail id', 'mail'],
+    pattern: /(?:email|e-mail|mail)[\s:-]+([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i,
   },
   {
     key: 'aadhaarNumber',
@@ -35,10 +53,76 @@ const FIELD_ALIASES = [
     pattern: /(?:aadhaar|uid|id no|id number)[\s:-]*(\d{4}\s?\d{4}\s?\d{4}|\d{12})/i,
   },
   {
+    key: 'panNumber',
+    label: 'PAN Card Number',
+    aliases: ['pan', 'pan no', 'pan number', 'permanent account number'],
+    pattern: /(?:pan|pan no|pan number)[\s:-]*([A-Z]{5}\d{4}[A-Z]{1})/i,
+  },
+  {
+    key: 'passportNumber',
+    label: 'Passport Number',
+    aliases: ['passport', 'passport no', 'passport number'],
+    pattern: /(?:passport|passport no)[\s:-]*([A-Z]{1}\d{7})/i,
+  },
+  {
+    key: 'voterId',
+    label: 'Voter ID Number',
+    aliases: ['voter id', 'voter no', 'epic no', 'card no'],
+    pattern: /(?:voter id|voter no|epic no)[\s:-]*([A-Z]{3}\d{7})/i,
+  },
+  {
+    key: 'bankAccount',
+    label: 'Bank Account Number',
+    aliases: ['account no', 'acc no', 'bank account', 'a/c no', 'account number'],
+    pattern: /(?:account no|acc no|bank account|a\/c no)[\s:-]*(\d{9,18})/i,
+  },
+  {
+    key: 'ifscCode',
+    label: 'IFSC Code',
+    aliases: ['ifsc', 'ifsc code', 'bank ifsc'],
+    pattern: /(?:ifsc|ifsc code)[\s:-]*([A-Z]{4}0[A-Z0-9]{6})/i,
+  },
+  {
+    key: 'pincode',
+    label: 'Pin Code',
+    aliases: ['pincode', 'pin code', 'zip code', 'postal code', 'pin'],
+    pattern: /(?:pincode|pin code|zip code|pin)[\s:-]*(\d{6})/i,
+  },
+  {
     key: 'permanentAddress',
     label: 'Address',
-    aliases: ['address', 'residence', 'residential address', 'permanent address'],
-    pattern: /(?:address|residence|residential address)[\s:-]+([A-Za-z0-9\s,.-]{10,120})/i,
+    aliases: ['address', 'residence', 'residential address', 'permanent address', 'location'],
+    pattern: /(?:address|residence|residential address|location)[\s:-]+([A-Za-z0-9\s,.-]{10,120})/i,
+  },
+  {
+    key: 'state',
+    label: 'State',
+    aliases: ['state', 'province'],
+    pattern: /(?:state|province)[\s:-]+([A-Za-z\s]{3,25})/i,
+  },
+  {
+    key: 'city',
+    label: 'City / District',
+    aliases: ['city', 'town', 'district'],
+    pattern: /(?:city|town|district)[\s:-]+([A-Za-z\s]{3,25})/i,
+  },
+  {
+    key: 'occupation',
+    label: 'Occupation',
+    aliases: ['occupation', 'profession', 'designation', 'job', 'work'],
+    pattern: /(?:occupation|profession|designation|job)[\s:-]+([A-Za-z\s]{3,30})/i,
+  },
+  {
+    key: 'income',
+    label: 'Annual Income',
+    aliases: ['income', 'annual income', 'salary'],
+    pattern: /(?:income|annual income|salary)[\s:-]+([\d,]{4,10})/i,
+  },
+  {
+    key: 'maritalStatus',
+    label: 'Marital Status',
+    aliases: ['marital status', 'married', 'single', 'unmarried'],
+    pattern: /(?:marital status)[\s:-]+(married|single|unmarried|divorced|widowed)/i,
   },
 ];
 
@@ -158,7 +242,7 @@ function parseOCRTextToFields(text, baseConfidence) {
   // Strategy 3: Heuristic name detection if no name label found
   if (!foundKeys.has('applicantFullName') && lines.length > 0) {
     const possibleName = lines.find(
-      (l) => /^[A-Z\s.]{3,35}$/.test(l) && !/GOVERNMENT|INDIA|CARD|NUMBER|MALE|FEMALE|DATE|BIRTH|ADDRESS/i.test(l)
+      (l) => /^[A-Z\s.]{3,35}$/i.test(l) && !/GOVERNMENT|INDIA|CARD|NUMBER|MALE|FEMALE|DATE|BIRTH|ADDRESS/i.test(l)
     );
     if (possibleName) {
       results.push({
@@ -171,6 +255,28 @@ function parseOCRTextToFields(text, baseConfidence) {
     }
   }
 
+  // Strategy 4: Fallback line & Key-Value pair extraction for any unclassified text
+  lines.forEach((line, idx) => {
+    const kvMatch = line.match(/^([^:-]{2,20})[\s:-]+(.{2,80})$/);
+    if (kvMatch) {
+      results.push({
+        fieldKey: 'kv_' + idx,
+        label: kvMatch[1].trim(),
+        value: kvMatch[2].trim(),
+        confidence: 'LOW',
+        isAutoFilled: true,
+      });
+    } else {
+      results.push({
+        fieldKey: 'line_' + idx,
+        label: 'Text Line ' + (idx + 1),
+        value: line,
+        confidence: 'LOW',
+        isAutoFilled: true,
+      });
+    }
+  });
+
   return results;
 }
 
@@ -178,18 +284,21 @@ function parseOCRTextToFields(text, baseConfidence) {
  * Match extracted OCR fields with the active form's field definitions
  */
 export function mapExtractedToFormFields(extractedFields, currentFormFields) {
-  if (!extractedFields || extractedFields.length === 0) return [];
   if (!currentFormFields || currentFormFields.length === 0) return [];
+  if (!extractedFields || extractedFields.length === 0) return [];
 
   const matched = [];
+  const usedExtractedIndices = new Set();
 
-  for (const field of currentFormFields) {
+  // Step 1: Explicit key & alias matching
+  currentFormFields.forEach((field) => {
     const key = (field.fieldKey || '').toLowerCase();
     const label = (field.label || '').toLowerCase();
 
-    const ocrMatch = extractedFields.find((ef) => {
-      const efKey = ef.fieldKey.toLowerCase();
-      const efLabel = ef.label.toLowerCase();
+    const ocrIdx = extractedFields.findIndex((ef, eIdx) => {
+      if (usedExtractedIndices.has(eIdx)) return false;
+      const efKey = (ef.fieldKey || '').toLowerCase();
+      const efLabel = (ef.label || '').toLowerCase();
       return (
         key === efKey ||
         label.includes(efLabel) ||
@@ -198,16 +307,37 @@ export function mapExtractedToFormFields(extractedFields, currentFormFields) {
       );
     });
 
-    if (ocrMatch) {
+    if (ocrIdx !== -1) {
+      usedExtractedIndices.add(ocrIdx);
       matched.push({
         formFieldId: field.id,
         fieldKey: field.fieldKey,
         label: field.label,
-        extractedValue: ocrMatch.value,
-        confidence: ocrMatch.confidence,
+        extractedValue: extractedFields[ocrIdx].value,
+        confidence: extractedFields[ocrIdx].confidence || 'HIGH',
         isAutoFilled: true,
       });
     }
+  });
+
+  // Step 2: Sequential fallback matching for remaining unmatched form fields
+  if (matched.length < currentFormFields.length) {
+    const matchedFieldIds = new Set(matched.map((m) => m.formFieldId));
+    const unusedFields = currentFormFields.filter((f) => !matchedFieldIds.has(f.id));
+    const unusedOCR = extractedFields.filter((_, eIdx) => !usedExtractedIndices.has(eIdx));
+
+    unusedFields.forEach((field, i) => {
+      if (unusedOCR[i] && unusedOCR[i].value) {
+        matched.push({
+          formFieldId: field.id,
+          fieldKey: field.fieldKey,
+          label: field.label,
+          extractedValue: unusedOCR[i].value,
+          confidence: 'LOW',
+          isAutoFilled: true,
+        });
+      }
+    });
   }
 
   return matched;
