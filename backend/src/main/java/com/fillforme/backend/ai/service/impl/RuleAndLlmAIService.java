@@ -1,8 +1,13 @@
 package com.fillforme.backend.ai.service.impl;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fillforme.backend.ai.dto.AIFieldExplanation;
 import com.fillforme.backend.ai.dto.AIRiskEvaluation;
 import com.fillforme.backend.ai.service.AIService;
+import com.fillforme.backend.document.dto.ExtractedFieldData;
+import com.fillforme.backend.form.entity.FieldType;
 import com.fillforme.backend.profile.entity.AccessibilityProfile;
 import com.fillforme.backend.profile.entity.CognitiveLoadPreference;
 import com.fillforme.backend.risk.entity.RiskLevel;
@@ -16,7 +21,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -33,9 +39,116 @@ public class RuleAndLlmAIService implements AIService {
     private String aiProvider;
 
     private final RestTemplate restTemplate;
+    private final ObjectMapper objectMapper;
 
     public RuleAndLlmAIService() {
         this.restTemplate = new RestTemplate();
+        this.objectMapper = new ObjectMapper();
+    }
+
+    @Override
+    public List<ExtractedFieldData> extractFieldsWithAI(byte[] fileBytes, String filename, String mimeType) {
+        if (apiKey != null && !apiKey.isBlank() && fileBytes != null && fileBytes.length > 0) {
+            try {
+                log.info("Sending document '{}' ({} bytes) to Gemini Vision AI for live field extraction...", filename, fileBytes.length);
+                List<ExtractedFieldData> aiExtracted = callGeminiVisionForFields(fileBytes, filename, mimeType);
+                if (aiExtracted != null && !aiExtracted.isEmpty()) {
+                    log.info("Gemini Vision AI successfully extracted {} fields from document '{}'", aiExtracted.size(), filename);
+                    return aiExtracted;
+                }
+            } catch (Exception e) {
+                log.warn("Gemini Vision AI extraction failed for '{}', falling back to document parser: {}", filename, e.getMessage());
+            }
+        }
+        log.info("No valid AI API key present or AI extraction skipped for '{}'. Handing off to DocumentProcessor.", filename);
+        return List.of();
+    }
+
+    private List<ExtractedFieldData> callGeminiVisionForFields(byte[] fileBytes, String filename, String mimeType) {
+        String effectiveMime = (mimeType != null && !mimeType.isBlank() && !mimeType.equals("application/octet-stream"))
+                ? mimeType
+                : (filename != null && filename.toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/jpeg");
+
+        String base64Data = Base64.getEncoder().encodeToString(fileBytes);
+
+        String prompt = "Inspect this form document image/file carefully. Extract ALL input form fields that a user needs to fill out in this form. " +
+                "Return ONLY a valid JSON array of objects. Each object must have these keys:\n" +
+                "- \"fieldKey\": string in camelCase (e.g. \"applicantName\", \"aadhaarNumber\", \"dateOfBirth\")\n" +
+                "- \"label\": human-readable title (e.g. \"Applicant Full Name\", \"Aadhaar Number\")\n" +
+                "- \"fieldType\": one of \"TEXT\", \"DATE\", \"EMAIL\", \"PHONE\", \"SELECT\", \"CHECKBOX\", \"DECLARATION\"\n" +
+                "- \"required\": boolean true or false\n" +
+                "- \"defaultHelpText\": short 1-sentence guidance for filling this field\n" +
+                "Do NOT include markdown formatting, backticks, or extra text. Output raw JSON array only.";
+
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
+
+        Map<String, Object> body = Map.of(
+                "contents", List.of(
+                        Map.of("parts", List.of(
+                                Map.of("inline_data", Map.of(
+                                        "mime_type", effectiveMime,
+                                        "data", base64Data
+                                )),
+                                Map.of("text", prompt)
+                        ))
+                )
+        );
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+        ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
+
+        if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+            return parseGeminiJsonResponse(response.getBody());
+        }
+
+        return List.of();
+    }
+
+    private List<ExtractedFieldData> parseGeminiJsonResponse(String responseBody) {
+        List<ExtractedFieldData> fields = new ArrayList<>();
+        try {
+            JsonNode root = objectMapper.readTree(responseBody);
+            JsonNode candidates = root.path("candidates");
+            if (candidates.isArray() && candidates.size() > 0) {
+                String text = candidates.get(0).path("content").path("parts").get(0).path("text").asText();
+                // Clean markdown code fence if present
+                String cleanedJson = text.replaceAll("```json", "").replaceAll("```", "").trim();
+
+                JsonNode fieldArray = objectMapper.readTree(cleanedJson);
+                if (fieldArray.isArray()) {
+                    int order = 1;
+                    for (JsonNode node : fieldArray) {
+                        String fieldKey = node.path("fieldKey").asText("field_" + order);
+                        String label = node.path("label").asText("Field " + order);
+                        String fieldTypeStr = node.path("fieldType").asText("TEXT").toUpperCase();
+                        boolean required = node.path("required").asBoolean(true);
+                        String helpText = node.path("defaultHelpText").asText("Please enter " + label);
+
+                        FieldType fieldType;
+                        try {
+                            fieldType = FieldType.valueOf(fieldTypeStr);
+                        } catch (Exception e) {
+                            fieldType = FieldType.TEXT;
+                        }
+
+                        fields.add(ExtractedFieldData.builder()
+                                .fieldKey(fieldKey)
+                                .label(label)
+                                .fieldType(fieldType)
+                                .required(required)
+                                .orderIndex(order++)
+                                .defaultHelpText(helpText)
+                                .build());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Could not parse JSON array from Gemini Vision response: {}", e.getMessage());
+        }
+        return fields;
     }
 
     @Override
@@ -43,7 +156,6 @@ public class RuleAndLlmAIService implements AIService {
         String preferredLang = profile != null && profile.getPreferredLanguage() != null ? profile.getPreferredLanguage() : "English";
         boolean isLowCognitive = profile != null && profile.getCognitiveLoadPreference() == CognitiveLoadPreference.LOW;
 
-        // Try Live LLM AI Call if API Key is configured
         if (apiKey != null && !apiKey.isBlank()) {
             try {
                 return callLlmForFieldExplanation(fieldKey, label, helpText, preferredLang, isLowCognitive);
@@ -52,7 +164,6 @@ public class RuleAndLlmAIService implements AIService {
             }
         }
 
-        // Smart Rule-Based Document AI Framing
         return generateSmartFallbackExplanation(fieldKey, label, helpText, preferredLang, isLowCognitive);
     }
 
@@ -82,7 +193,6 @@ public class RuleAndLlmAIService implements AIService {
             }
         }
 
-        // Return parsed AI response or fallback
         return generateSmartFallbackExplanation(fieldKey, label, helpText, lang, isLowCognitive);
     }
 
@@ -145,6 +255,31 @@ public class RuleAndLlmAIService implements AIService {
                 .whyAskedExplanation(whyAsked)
                 .simplifiedQuestionText(simplifiedQuestion)
                 .build();
+    }
+
+    private List<ExtractedFieldData> generateSmartFallbackFields(String filename) {
+        String lowerName = filename != null ? filename.toLowerCase() : "";
+
+        if (lowerName.contains("aadhaar") || lowerName.contains("aadhar") || lowerName.contains("uidai") ||
+            lowerName.contains("identity") || lowerName.contains("id") || lowerName.contains("voter") || lowerName.contains("passport")) {
+            return List.of(
+                    ExtractedFieldData.builder().fieldKey("applicantFullName").label("Full Legal Name").fieldType(FieldType.TEXT).required(true).orderIndex(1).defaultHelpText("Enter full name as on your ID document").build(),
+                    ExtractedFieldData.builder().fieldKey("aadhaarNumber").label("Aadhaar / ID Number").fieldType(FieldType.TEXT).required(true).orderIndex(2).defaultHelpText("12-digit Aadhaar / Enrollment Number").build(),
+                    ExtractedFieldData.builder().fieldKey("dateOfBirth").label("Date of Birth").fieldType(FieldType.DATE).required(true).orderIndex(3).defaultHelpText("Select your official birth date").build(),
+                    ExtractedFieldData.builder().fieldKey("gender").label("Gender").fieldType(FieldType.TEXT).required(true).orderIndex(4).defaultHelpText("Male / Female / Transgender").build(),
+                    ExtractedFieldData.builder().fieldKey("mobileNumber").label("Mobile Phone Number").fieldType(FieldType.PHONE).required(true).orderIndex(5).defaultHelpText("Registered mobile number").build(),
+                    ExtractedFieldData.builder().fieldKey("permanentAddress").label("Permanent Residential Address").fieldType(FieldType.TEXT).required(true).orderIndex(6).defaultHelpText("Full residential address with PIN code").build(),
+                    ExtractedFieldData.builder().fieldKey("declarationConsent").label("Declaration & Authorization Consent").fieldType(FieldType.DECLARATION).required(true).orderIndex(7).defaultHelpText("Confirm legal consent for identity verification").build()
+            );
+        }
+
+        return List.of(
+                ExtractedFieldData.builder().fieldKey("applicantFullName").label("Full Name").fieldType(FieldType.TEXT).required(true).orderIndex(1).defaultHelpText("Enter your official full name").build(),
+                ExtractedFieldData.builder().fieldKey("dateOfBirth").label("Date of Birth").fieldType(FieldType.DATE).required(true).orderIndex(2).defaultHelpText("Select your official birth date").build(),
+                ExtractedFieldData.builder().fieldKey("mobileNumber").label("Mobile Phone Number").fieldType(FieldType.PHONE).required(true).orderIndex(3).defaultHelpText("Enter your contact phone number").build(),
+                ExtractedFieldData.builder().fieldKey("permanentAddress").label("Permanent Residential Address").fieldType(FieldType.TEXT).required(true).orderIndex(4).defaultHelpText("Enter your primary address").build(),
+                ExtractedFieldData.builder().fieldKey("declarationConsent").label("Legal Declaration & Consent").fieldType(FieldType.DECLARATION).required(true).orderIndex(5).defaultHelpText("Confirm your legal consent").build()
+        );
     }
 
     @Override

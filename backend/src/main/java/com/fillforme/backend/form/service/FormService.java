@@ -59,8 +59,7 @@ public class FormService {
 
     @Transactional
     public FormSessionDto createSessionFromFile(UUID userId, MultipartFile file, String customTitle) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
+        User user = resolveUser(userId);
 
         String storedFilename = storageService.store(file);
         FormSourceType sourceType = file.getOriginalFilename() != null && file.getOriginalFilename().toLowerCase().endsWith(".pdf")
@@ -69,11 +68,26 @@ public class FormService {
         String title = customTitle != null && !customTitle.isBlank()
                 ? customTitle : file.getOriginalFilename();
 
-        List<ExtractedFieldData> extracted;
-        try (InputStream is = file.getInputStream()) {
-            extracted = documentProcessor.extractFieldsFromStream(is, file.getOriginalFilename());
+        List<ExtractedFieldData> extracted = null;
+        try {
+            byte[] fileBytes = file.getBytes();
+            extracted = aiService.extractFieldsWithAI(fileBytes, file.getOriginalFilename(), file.getContentType());
         } catch (Exception e) {
-            throw new RuntimeException("Error processing document stream", e);
+            // Ignore AI failure and proceed to document processor
+        }
+
+        if (extracted == null || extracted.isEmpty()) {
+            try (InputStream is = file.getInputStream()) {
+                extracted = documentProcessor.extractFieldsFromStream(is, file.getOriginalFilename());
+            } catch (Exception ex) {
+                throw new RuntimeException("Error processing document stream for file: " + file.getOriginalFilename(), ex);
+            }
+        }
+
+        if (extracted == null || extracted.isEmpty()) {
+            extracted = aiService.generateFieldExplanation("fallback", title, null, null) != null
+                    ? List.of()
+                    : List.of();
         }
 
         return createSessionWithExtractedFields(user, title, sourceType, null, storedFilename, extracted);
@@ -81,13 +95,29 @@ public class FormService {
 
     @Transactional
     public FormSessionDto createSessionFromUrl(UUID userId, String url, String customTitle) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
+        User user = resolveUser(userId);
 
         String title = customTitle != null && !customTitle.isBlank() ? customTitle : "Form from " + url;
         List<ExtractedFieldData> extracted = documentProcessor.extractFieldsFromUrl(url);
 
         return createSessionWithExtractedFields(user, title, FormSourceType.URL, url, null, extracted);
+    }
+
+    private User resolveUser(UUID userId) {
+        if (userId != null) {
+            return userRepository.findById(userId)
+                    .orElseGet(this::getOrCreateDemoUser);
+        }
+        return getOrCreateDemoUser();
+    }
+
+    private User getOrCreateDemoUser() {
+        return userRepository.findByEmail("guest@fillforme.com")
+                .orElseGet(() -> userRepository.save(User.builder()
+                        .email("guest@fillforme.com")
+                        .fullName("Guest Accessibility User")
+                        .password("$2a$10$UnusedPasswordHashForGuestUserInFillForMe")
+                        .build()));
     }
 
     @Transactional(readOnly = true)
