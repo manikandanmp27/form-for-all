@@ -27,6 +27,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import com.fillforme.backend.ai.dto.TextRegionData;
+
 @Service
 public class RuleAndLlmAIService implements AIService {
 
@@ -45,13 +47,112 @@ public class RuleAndLlmAIService implements AIService {
     private static final List<String> GEMINI_MODELS = List.of(
             "gemini-2.5-flash",
             "gemini-2.0-flash",
-            "gemini-1.5-flash-latest",
-            "gemini-1.5-pro"
+            "gemini-1.5-flash"
     );
 
     public RuleAndLlmAIService() {
-        this.restTemplate = new RestTemplate();
+        org.springframework.http.client.SimpleClientHttpRequestFactory factory = new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(60000);
+        factory.setReadTimeout(120000);
+        this.restTemplate = new RestTemplate(factory);
         this.objectMapper = new ObjectMapper();
+    }
+
+    @Override
+    public List<TextRegionData> translateDocumentWithVisionAI(byte[] fileBytes, String filename, String mimeType, String targetLanguage) {
+        if (apiKey != null && !apiKey.isBlank() && fileBytes != null && fileBytes.length > 0) {
+            log.info("Sending document '{}' to Gemini Vision AI for line-by-line translation to {}...", filename, targetLanguage);
+            return callGeminiVisionForTranslation(fileBytes, filename, mimeType, targetLanguage);
+        }
+        log.warn("No Gemini API key available for vision translation of '{}'", filename);
+        return List.of();
+    }
+
+    private List<TextRegionData> callGeminiVisionForTranslation(byte[] fileBytes, String filename, String mimeType, String targetLanguage) {
+        String effectiveMime = (mimeType != null && !mimeType.isBlank() && !mimeType.equals("application/octet-stream"))
+                ? mimeType
+                : (filename != null && filename.toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/jpeg");
+
+        String base64Data = Base64.getEncoder().encodeToString(fileBytes);
+
+        String prompt = String.format(
+                "You are a Google Lens image translator. Read ALL text printed or written on this document image (including regional Indian languages like Kannada, Hindi, Tamil, Telugu, Marathi, Bengali, Gujarati, Punjabi, English).\n" +
+                "Translate every single text line, heading, instruction, and field label to target language: \"%s\".\n" +
+                "Return ONLY a valid JSON array of objects. Do not include markdown code block formatting.\n" +
+                "Each object MUST have these exact keys:\n" +
+                "- \"originalText\": string (original text found on document)\n" +
+                "- \"translatedText\": string (translated text in %s)\n" +
+                "- \"xPercent\": number (left edge percentage from 0.0 to 100.0)\n" +
+                "- \"yPercent\": number (top edge percentage from 0.0 to 100.0)\n" +
+                "- \"widthPercent\": number (box width percentage from 1.0 to 100.0)\n" +
+                "- \"heightPercent\": number (box height percentage from 1.0 to 100.0)",
+                targetLanguage, targetLanguage
+        );
+
+        Map<String, Object> body = Map.of(
+                "contents", List.of(
+                        Map.of("parts", List.of(
+                                Map.of("inline_data", Map.of(
+                                        "mime_type", effectiveMime,
+                                        "data", base64Data
+                                )),
+                                Map.of("text", prompt)
+                        ))
+                )
+        );
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+
+        for (String model : GEMINI_MODELS) {
+            try {
+                String url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + apiKey;
+                ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
+
+                if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                    List<TextRegionData> regions = parseGeminiVisionTranslationResponse(response.getBody());
+                    if (!regions.isEmpty()) {
+                        log.info("Gemini Vision AI successfully translated {} text regions for document '{}'", regions.size(), filename);
+                        return regions;
+                    }
+                }
+            } catch (Exception e) {
+                log.debug("Gemini model {} failed for vision translation: {}", model, e.getMessage());
+            }
+        }
+        return List.of();
+    }
+
+    private List<TextRegionData> parseGeminiVisionTranslationResponse(String responseBody) {
+        List<TextRegionData> list = new ArrayList<>();
+        try {
+            JsonNode root = objectMapper.readTree(responseBody);
+            JsonNode candidates = root.path("candidates");
+            if (candidates.isArray() && candidates.size() > 0) {
+                String text = candidates.get(0).path("content").path("parts").get(0).path("text").asText();
+                String cleanedJson = text.replaceAll("```json", "").replaceAll("```", "").trim();
+
+                JsonNode array = objectMapper.readTree(cleanedJson);
+                if (array.isArray()) {
+                    for (JsonNode node : array) {
+                        String orig = node.path("originalText").asText("");
+                        String trans = node.path("translatedText").asText("");
+                        double x = node.path("xPercent").asDouble(0);
+                        double y = node.path("yPercent").asDouble(0);
+                        double w = node.path("widthPercent").asDouble(20);
+                        double h = node.path("heightPercent").asDouble(4);
+
+                        if (!trans.isBlank()) {
+                            list.add(new TextRegionData(orig, trans, x, y, w, h));
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to parse Gemini Vision translation JSON: {}", e.getMessage());
+        }
+        return list;
     }
 
     @Override

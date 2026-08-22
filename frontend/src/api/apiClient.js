@@ -5,7 +5,7 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000,
+  timeout: 120000, // Default 2 minute timeout for backend AI processing
 });
 
 // Interceptor to inject Authorization Bearer token
@@ -14,6 +14,9 @@ apiClient.interceptors.request.use(
     const token = localStorage.getItem('fillforme_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
     }
     return config;
   },
@@ -26,7 +29,9 @@ apiClient.interceptors.response.use(
   (error) => {
     let message = 'An unexpected error occurred. Please try again.';
 
-    if (error.response) {
+    if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+      message = 'Form processing timed out while scanning document lines. Please try again.';
+    } else if (error.response) {
       const data = error.response.data;
       if (typeof data === 'string') {
         message = data;

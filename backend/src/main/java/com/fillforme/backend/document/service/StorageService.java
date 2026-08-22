@@ -47,6 +47,17 @@ public class StorageService {
         }
     }
 
+    public String storeBytes(byte[] bytes, String filename) {
+        String cleanName = StringUtils.cleanPath(Objects.requireNonNull(filename));
+        String storedFilename = cleanName.contains("_") ? cleanName : UUID.randomUUID() + "_" + cleanName;
+        try {
+            Files.write(this.rootLocation.resolve(storedFilename), bytes, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            return storedFilename;
+        } catch (IOException e) {
+            throw new DocumentProcessingException("Failed to store bytes for file " + filename, e);
+        }
+    }
+
     public Path load(String filename) {
         return rootLocation.resolve(filename);
     }

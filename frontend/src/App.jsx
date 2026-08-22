@@ -17,6 +17,7 @@ import { FormFillingPage } from './pages/FormFillingPage';
 import { ReviewPage } from './pages/ReviewPage';
 import { CompletePage } from './pages/CompletePage';
 import { ProfilePage } from './pages/ProfilePage';
+import { FormTranslationPage } from './pages/FormTranslationPage';
 
 import { ChatbotWidget } from './components/chatbot/ChatbotWidget';
 
@@ -50,6 +51,7 @@ export default function App() {
                   <Route path="/forms/:sessionId" element={<FormFillingPage />} />
                   <Route path="/forms/:sessionId/review" element={<ReviewPage />} />
                   <Route path="/forms/:sessionId/complete" element={<CompletePage />} />
+                  <Route path="/translate" element={<FormTranslationPage />} />
                   <Route path="/risk-alerts" element={<DashboardPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
 

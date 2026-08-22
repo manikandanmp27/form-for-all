@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useProfile } from '../../context/ProfileContext';
-import { FileText, User, LogOut, PlusCircle, LayoutDashboard, Sparkles } from 'lucide-react';
+import { FileText, User, LogOut, PlusCircle, LayoutDashboard, Sparkles, Languages } from 'lucide-react';
 
 export const Navbar = () => {
   const { user, isAuthenticated, logout } = useAuth();
@@ -40,6 +40,13 @@ export const Navbar = () => {
                 className="text-slate-600 hover:text-teal-700 font-medium text-sm flex items-center gap-1.5 focus:ring-2 focus:ring-teal-500 rounded px-2 py-1"
               >
                 <LayoutDashboard className="w-4 h-4 text-teal-600" /> {t('dashboard')}
+              </Link>
+
+              <Link
+                to="/translate"
+                className="text-slate-600 hover:text-teal-700 font-medium text-sm flex items-center gap-1.5 focus:ring-2 focus:ring-teal-500 rounded px-2 py-1"
+              >
+                <Languages className="w-4 h-4 text-indigo-600" /> Translate Form
               </Link>
 
               <Link

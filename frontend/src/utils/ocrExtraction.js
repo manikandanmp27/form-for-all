@@ -212,3 +212,37 @@ export function mapExtractedToFormFields(extractedFields, currentFormFields) {
 
   return matched;
 }
+
+/**
+ * Extract actual line bounding boxes (x, y, width, height) from document image using Tesseract OCR
+ * @param {File|Blob|HTMLCanvasElement|string} imageSource
+ * @returns {Promise<Array<{ originalText: string, x: number, y: number, width: number, height: number }>>}
+ */
+export async function extractBoundingBoxesFromImage(imageSource) {
+  let worker = null;
+  try {
+    worker = await createWorker('eng');
+    const ret = await worker.recognize(imageSource);
+    const lines = ret.data.lines || [];
+    const regions = [];
+
+    for (const line of lines) {
+      const text = (line.text || '').trim();
+      if (text.length >= 2 && line.bbox) {
+        const x = Math.round(line.bbox.x0);
+        const y = Math.round(line.bbox.y0);
+        const width = Math.max(20, Math.round(line.bbox.x1 - line.bbox.x0));
+        const height = Math.max(12, Math.round(line.bbox.y1 - line.bbox.y0));
+        regions.push({ originalText: text, x, y, width, height });
+      }
+    }
+    return regions;
+  } catch (err) {
+    console.warn('Bounding box extraction error:', err);
+    return [];
+  } finally {
+    if (worker) {
+      await worker.terminate();
+    }
+  }
+}
