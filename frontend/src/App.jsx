@@ -18,6 +18,8 @@ import { ReviewPage } from './pages/ReviewPage';
 import { CompletePage } from './pages/CompletePage';
 import { ProfilePage } from './pages/ProfilePage';
 
+import { ChatbotWidget } from './components/chatbot/ChatbotWidget';
+
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -55,6 +57,7 @@ export default function App() {
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </div>
+              <ChatbotWidget />
               <Footer />
             </div>
           </BrowserRouter>
