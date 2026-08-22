@@ -4,6 +4,17 @@
 
 ---
 
+## 🔗 Quick Links
+
+| Resource | Link |
+| :--- | :--- |
+| 🌐 **Website Link** | [form-for-all-one.vercel.app](https://form-for-all-one.vercel.app/) |
+| 🎬 **Demo Video** | [Watch Demo Video](https://drive.google.com/file/d/1_eG2FGIBnoFB9yt41m2K6swPkUifeYXm/view?usp=sharing) |
+| 💻 **Source Code** | [GitHub Repository](https://github.com/manikandanmp27/form-for-all) |
+| 📄 **Documentation** | [View Project Documentation](https://drive.google.com/file/d/1SOnkHcWzv5w_O-HVv0YNkek8ClIYD0PG/view?usp=sharing) |
+
+---
+
 ## 📌 Problem
 
 For millions of users—especially elderly citizens, visually impaired individuals, neurodivergent users, and non-native language speakers—filling digital and physical forms presents severe accessibility barriers:
@@ -121,10 +132,12 @@ For detailed configuration and environment variable setup, view [docs/setup.md](
 
 ---
 
-## 🌐 Live Demo & Deployment
+## 🌐 Live Demo & Important Links
 
-* **Frontend**: [Vercel Deployment Guide](docs/deployment.md#frontend-deployment-vercel)
-* **Backend API**: [Render Deployment Guide](docs/deployment.md#backend-deployment-render)
+* **Live Web Application**: [https://form-for-all-one.vercel.app/](https://form-for-all-one.vercel.app/)
+* **Demo Video**: [Watch on Google Drive](https://drive.google.com/file/d/1_eG2FGIBnoFB9yt41m2K6swPkUifeYXm/view?usp=sharing)
+* **Source Code**: [GitHub Repository](https://github.com/manikandanmp27/form-for-all)
+* **Project Documentation**: [View Document on Google Drive](https://drive.google.com/file/d/1SOnkHcWzv5w_O-HVv0YNkek8ClIYD0PG/view?usp=sharing)
 * **Interactive Presentation Script**: View [docs/demo.md](docs/demo.md).
 
 ---
